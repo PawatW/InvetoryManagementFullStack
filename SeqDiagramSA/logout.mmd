@@ -1,0 +1,24 @@
+sequenceDiagram
+    actor User as User
+    participant UI as User Interface
+    participant Controller as AuthController
+    participant Service as AuthService
+    participant Repo as SessionRepository
+    participant DB as PostgreSQL Database
+
+    Note over User,DB: Precondition: User is logged in
+
+    User->>UI: 1. กดปุ่ม Logout
+    UI->>Controller: Request logout
+    Controller->>Service: logout(staff_id)
+    
+    Service->>Service: 2. ตรวจสอบว่ามี session/token อยู่หรือไม่
+    
+    Service->>Repo: Delete session
+    Repo->>DB: 3. DELETE FROM ActiveSession<br/>WHERE staff_id = :staff_id
+    DB->>Repo: Confirm deletion
+    Repo->>Service: Session deleted
+    
+    Service->>Controller: Logout successful
+    Controller->>UI: 4. Redirect to Login page
+    UI->>User: 5. แสดงข้อความ "ออกจากระบบสำเร็จ"

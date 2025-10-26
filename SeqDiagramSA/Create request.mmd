@@ -1,0 +1,44 @@
+sequenceDiagram
+    actor Technician
+    participant UI as CreateRequestPage
+    participant C as :RequestController
+    participant S as :RequestService
+    participant DB as Database
+
+    Technician ->> UI: กด "Create Request"
+    UI ->> C: validateRole(staff_id, role from token)
+    C ->> UI: show create request form
+
+    Technician ->> UI: กดค้นหา Order
+    UI ->> C: getConfirmedOrders() return list<Order>
+    C ->> S: getConfirmedOrders()  return list<Order>
+    S ->> DB: get (Q 2.1 str) return Order list
+    C ->> UI: display Order list
+
+    Technician ->> UI: พิมพ์ค้นหา Order
+    UI ->> C:searhCustomers(keyword)
+    C ->> UI:display order ตามkeywordที่พิมพ์
+    Technician ->> UI: กดเลือก Order
+    UI ->> C: getOrderItems(orderId) return list<orderItem>
+    C ->> S: getOrderItemsbyId(orderId) return list<orderItem>
+    S ->> DB: get (Q 2.2 str) return OrderItem list
+    C ->> UI: display OrderItem list
+    loop
+        Technician ->> UI: เลือกสินค้า + qty
+        UI ->> C: validateProductItem()
+        C ->> S: check NULL (product_id)
+        C ->> UI: display error
+        UI ->> C: update RequestItem[] (in memory)
+    end
+
+    Technician ->> UI: ตรวจสอบ summary
+    UI ->> C: validateRequest
+    
+    Technician ->> UI: กด "Submit Request"
+    UI ->> C: Create request (request)
+    C ->> S: createRequest(request)
+    S ->> DB: INSERT(Q 2.3 str) 
+    loop
+        S ->> DB: INSERT(Q 2.4 str)
+    end
+ 

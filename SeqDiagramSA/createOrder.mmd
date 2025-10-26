@@ -1,0 +1,72 @@
+sequenceDiagram
+    participant A as Staff (Actor)
+    participant F as Frontend (Web UI)
+    participant C as Controller (OrderController)
+    participant S as Service (OrderService)
+    participant R as Repository (OrderRepository)
+    participant DB as Database
+
+    %% Step 1–2: เริ่มสร้าง Order
+    A->>F: Click "Create Order"
+    F->>C: POST /orders (init create)
+    C->>S: createOrder(requestDTO)
+    S->>R: preloadCustomers()
+    R->>DB: SELECT * FROM Customer
+    DB-->>R: customerList
+    R-->>S: customerList
+    S-->>C: orderFormData
+    C-->>F: display order form + customers
+
+    %% Step 3–8: เลือกลูกค้า
+    A->>F: Select Customer
+    F->>C: setCustomer(customerId)
+    C->>S: setCustomer(orderObj, customerId)
+    S-->>C: updatedOrderObj
+    C-->>F: show selected customer
+
+    %% Step 9–16: เพิ่มสินค้าในรายการ
+    A->>F: Search Product + Add to Order
+    F->>C: searchProduct(keyword)
+    C->>S: preloadProducts()
+    S->>R: SELECT * FROM Product
+    R->>DB: query products
+    DB-->>R: productList
+    R-->>S: productList
+    S-->>C: filteredProducts
+    C-->>F: display filtered products
+
+    A->>F: Choose Product + Quantity
+    F->>C: addItem(productId, qty)
+    C->>S: validateItem(productId, qty)
+    S-->>C: valid/invalid
+    alt valid
+        C->>S: addItemToOrder(orderObj, productId, qty)
+        S-->>C: updatedOrderObj
+        C-->>F: update item list + total
+    else invalid
+        C-->>F: show validation error
+    end
+
+    %% Step 17–18: ตรวจสอบและยืนยัน
+    A->>F: Click "Confirm Order"
+    F->>C: confirmOrder()
+    C->>S: validateOrder(orderObj)
+    S-->>C: valid/invalid
+    alt valid
+        C->>S: saveOrder(orderObj)
+        S->>R: insertOrder(order)
+        R->>DB: INSERT INTO "Order" (...)
+        DB-->>R: OK
+        loop items
+            S->>R: insertOrderItem(item)
+            R->>DB: INSERT INTO orderitem(...)
+            DB-->>R: OK
+        end
+        R-->>S: success
+        S-->>C: orderCreated
+        C-->>F: show success summary
+        F-->>A: Display Order Summary
+    else invalid
+        C-->>F: show error message
+        F-->>A: Display Error
+    end

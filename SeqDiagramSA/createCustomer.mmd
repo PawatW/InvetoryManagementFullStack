@@ -1,0 +1,45 @@
+sequenceDiagram
+    actor User as Staff/Admin
+    participant UI as User Interface
+    participant Controller as CustomerController
+    participant Service as CustomerService
+    participant Repo as CustomerRepository
+    participant DB as PostgreSQL Database
+
+    Note over User,DB: Precondition: User logged in with permission to create customer
+
+    User->>UI: 1. เลือกเมนู Create Customer
+    UI->>Controller: Request create customer form
+    Controller->>UI: 2. Display create customer form
+    
+    User->>UI: 3. กรอกข้อมูลลูกค้าใหม่
+    UI->>Controller: 4. validateCustomer(customer_data)
+    Controller->>Service: Validate customer data
+    Service->>Service: Check customer_name
+    Service->>Repo: Check phone/email duplication
+    Repo->>DB: SELECT phone, email FROM Customer<br/>WHERE phone = :phone OR email = :email<br>Return check result
+
+    
+    alt 
+        Service->>Controller: customer_name is NULL
+        Controller->>UI: Show error
+    else 
+        Service->>Controller: phone หรือ email ซ้ำใน DB 
+        Controller->>UI: Show error "ลูกค้านี้มีอยู่แล้ว"
+    else 
+        Service->>Controller: Validation Success
+        User->>UI: 5. กด Confirm Create
+        UI->Controller: createCustomer(customer_data)
+        Controller->>Service: createCustomer(customer_data)
+        Service->>Repo: 6. Insert customer
+        Repo->>DB: INSERT INTO Customer<br/>VALUES (:customer_name, :address,<br/>:phone, :email)<br/>RETURNING customer_id<br>Return customer_id
+       
+        
+        Service->>Repo: 7. Query created customer
+        Repo->>DB: SELECT customer_id, customer_name,<br/>address, phone, email<br/>FROM Customer<br/>WHERE customer_id = :new_customer_id<br>Return customer data
+     
+        Controller->>UI: Display created customer
+    end
+    
+    User->>UI: 8. ตรวจสอบผลลัพธ์
+    UI->>User: Show customer information

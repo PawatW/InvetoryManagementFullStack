@@ -1,0 +1,52 @@
+sequenceDiagram
+    actor Staff as Staff/Admin
+    participant UI as User Interface
+    participant Controller as ProductController
+    participant Service as ProductService
+    participant Repo as ProductRepository
+    participant DB as PostgreSQL Database
+
+    Note over Staff,DB: Precondition: User logged in with permission to create product
+
+    Staff->>UI: 1. เลือกเมนู Create Product
+    UI->>Controller: Request create product form
+    Controller->>UI: 2. Display create product form<br/>with preloaded Suppliers
+    Staff->>UI: 3. กดกล่องเลือก Supplier
+
+
+    Controller->>Service: getSuppliers()
+    Service->>Repo: Query suppliers
+    Repo->>DB: 4. SELECT supplier_id, supplier_name<br/>FROM Supplier<br/>ORDER BY supplier_name<br/>Return supplier list
+    
+    
+    UI->>Staff: Display supplier list
+    
+    Staff->>UI: 5. พิมพ์ค้นหา supplier
+    UI->>Controller: Filter suppliers
+    Controller->>Service: 6. Context search from preloaded suppliers<br/>Return filtered suppliers
+    Controller->>UI: Display filtered suppliers
+    
+    Staff->>UI: 7. กรอกข้อมูลสินค้าใหม่
+    UI->>Controller: 8. validateProduct(product_data)
+    Controller->>Service: Validate product data
+    Service->>Service: Check product_name, price_per_unit, supplier_id
+    
+    alt
+        Service->>Controller:  product_name is NULL 
+        Controller->>UI: Show error "กรุณาใส่ชื่อ"
+    else 
+        Service->>Controller: price_per_unit <= 0 
+        Controller->>UI: Show error "กรุณาใส่ราคาให้ถูกต้อง"
+    else
+        Service->>Controller:  supplier_id is NULL 
+        Controller->>UI: Show error "กรุณาเลือก Supplier"
+    else Validation Success
+        Service->>Controller: Validation passed
+        Staff->>UI: 9. กด Confirm Create
+        Controller->>Service: createProduct(product_data)
+        Service->>Repo: 10. Insert product
+        Repo->>DB: INSERT INTO Product<br/>VALUES (:product_name, :description,<br/>:unit, :price_per_unit, :supplier_id, 0)<br/>RETURNING product_id<br/>Return product_id
+       
+    end
+    
+ 

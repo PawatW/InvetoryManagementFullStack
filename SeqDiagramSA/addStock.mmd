@@ -1,0 +1,72 @@
+sequenceDiagram
+    actor Warehouse as Staff (Warehouse)
+    participant UI as User Interface
+    participant Controller as StockController
+    participant Service as StockService
+    participant Repo as StockRepository
+    participant DB as PostgreSQL Database
+
+    Note over Warehouse,DB: Precondition: Staff logged in (role = Warehouse),<br/>Product exists in database
+
+    Warehouse->>UI: 1. เลือกเมนู Stock-In
+    UI->>Warehouse: 2. Display form เพิ่มstock
+
+    UI->>Controller: Request stock-in form
+    Controller->>Service: getSuppliers()
+    Service->>Repo: Query suppliers
+    Repo->>DB: SELECT supplier_id, supplier_name<br/>FROM Supplier<br/>ORDER BY supplier_name<br>Return supplier list
+   
+    
+    Warehouse->>UI: 3. กดเข้าช่องเลือก supplier
+    UI->>Warehouse: 4. Display formเพิ่ม stock with preloaded supplier list
+    
+    Warehouse->>UI: 5. พิมพ์ค้นหา Supplier
+    UI->>Controller: Filter suppliers
+    Controller->>Service: 6. Context search from preloaded suppliers<br>Return filtered suppliers
+
+    Controller->>UI: Display filtered suppliers
+    
+    Warehouse->>UI: 7. กดเลือก Supplier
+    UI->>Controller: 8.validateSupplier(supplier_id)
+    Controller->>Service: Validate supplier
+    
+    alt
+        Service->>Controller:  supplier_id is NULL
+        Controller->>UI: Show error
+    else 
+        Service->>Controller: Validation Success
+        Controller->>UI: Display supplier ที่เลือกบนform
+    end
+    
+    Warehouse->>UI: 9. กดช่องค้นหา Product
+    UI->>Controller: Request products
+    Controller->>Service: getProducts()
+    Service->>Repo: Query products
+    Repo->>DB: 10. SELECT product_id, product_name,<br/>quantity FROM Product<br/>ORDER BY product_name LIMIT 50, <br>Return product list
+   
+    Controller->>UI: Display products
+    
+    Warehouse->>UI: 11. พิมพ์ค้นหา Product
+    UI->>Controller: Filter products
+    Controller->>Service: 12. Context search from preloaded products<br>Return filtered products
+    Controller->>UI: Display filtered products
+    
+    Warehouse->>UI: 13. เลือกสินค้า + ใส่จำนวน qty
+    UI->>Controller: Submit product and qty
+    Controller->>Service: 14.Validate product and qty
+    
+    alt 
+        Service->>Controller: product_id is NULL or qty invalid
+        Controller->>UI: Show error
+    else 
+        Service->>Controller: Validation Success
+        Controller->>UI: Display product ที่เลือกและข้อมูลบนform
+    end
+    
+    Warehouse->>UI: 15. กด Confirm Stock-In
+    UI->>Controller: Confirm stock-in
+    Controller->>Service: confirmStockIn(supplier_id, product_id, qty)
+    Service->>DB: 16. UPDATE Product<br/>SET quantity = quantityx + :qty<br/>WHERE product_id = :product_id
+    Controller->>UI: Confirm update
+    Service->>DB: 17. INSERT INTO StockTransaction<br/>VALUES (NOW(), 'IN', :product_id, :qty,<br/>:staff_id, CONCAT('Stock-In from Supplier...'))
+    Controller->>UI: Display success message

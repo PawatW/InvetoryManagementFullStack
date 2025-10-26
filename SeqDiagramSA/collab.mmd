@@ -1,0 +1,47 @@
+sequenceDiagram
+    actor Staff
+    participant UI as CreateOrder
+    participant Ctrl as Controller
+    participant DB as Database
+
+    Staff ->> UI: 1. Click "Create Order"
+    UI ->> Staff: 2. Show form
+    UI ->> Ctrl: 3. initOrder()
+
+    UI ->> Ctrl: 4. getAllCustomer(...)
+    Ctrl ->> DB: 5. get(q1, str)
+    DB -->> Ctrl: 6. Customer list
+    Ctrl -->> UI: 7. Customer list
+
+    Staff ->> UI: 8. Search Customer
+    UI ->> Ctrl: 9. getCustomer(id/name)
+    Ctrl ->> DB: 10. get(q1, str)
+    DB -->> Ctrl: 11. Customer list
+    Ctrl -->> UI: 12. Customer list
+
+    Staff ->> UI: 13. Select Customer
+    UI ->> Ctrl: 14. setCustomer(id)
+
+    Staff ->> UI: 15. Choose/Search Product
+    UI ->> Ctrl: 16. getAllProduct(...)
+    Ctrl ->> DB: 17. get(q1.2, str)
+    DB -->> Ctrl: 18. Product list
+    Ctrl -->> UI: 19. Product list
+
+    UI ->> Ctrl: 20. getProduct(id/name)
+    Ctrl ->> DB: 21. get(q1.2, str)
+    DB -->> Ctrl: 22. Product list
+    Ctrl -->> UI: 23. Product list
+
+    Staff ->> UI: 24. Add Product + qty
+    UI ->> Ctrl: 25. Validate & AddItem()
+
+    Staff ->> UI: 26. Review Order
+    UI ->> Ctrl: 27. ValidateOrder()
+
+    Staff ->> UI: 28. Confirm Order
+    UI ->> Ctrl: 29. createOrder()
+    Ctrl ->> DB: 30. INSERT order(q1.3)
+
+    UI ->> Ctrl: 31. createOrderItem()
+    Ctrl ->> DB: 32. INSERT orderItem(q1.3)

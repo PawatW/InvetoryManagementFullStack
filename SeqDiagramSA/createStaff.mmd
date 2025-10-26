@@ -1,0 +1,49 @@
+sequenceDiagram
+    actor Admin as Admin/Manager
+    participant UI as User Interface
+    participant Controller as StaffController
+    participant Service as StaffService
+    participant Repo as StaffRepository
+    participant DB as PostgreSQL Database
+
+    Note over Admin,DB: Precondition: User logged in with permission to create staff
+
+    Admin->>UI: 1. เลือกเมนู Create Staff
+    UI->>Controller: Request create staff form
+    Controller->>UI: 2. Display create staff form
+    
+    Admin->>UI: 3. กรอกข้อมูล Staff ใหม่
+    UI->>Controller: 4. validateAndCreateStaff(staff_data)
+    Controller->>Service: Validate and create staff
+    
+    Service->>Service: Check if staff_name is NULL
+    alt 
+        Service->>Controller: staff_name is NULL
+        Controller->>UI: Show error "กรุณาใส่ชื่อ"
+    end
+    
+    Service->>Service: Check if role is NULL
+    alt 
+        Service->>Controller: role is NULL 
+        Controller->>UI: Show error "กรุณาเลือก role"
+    end
+    
+    Service->>Repo: Check email duplication
+    Repo->>DB: SELECT email FROM Staff<br/>WHERE email = :email<br>Return result
+    
+    alt 
+        Service->>Controller: email ซ้ำใน DB 
+        Controller->>UI: Show error "อีเมลนี้ถูกใช้แล้ว"
+    else Validation Success
+        Admin->>UI: 5. กด Confirm Create
+        Service->>Repo: 6. Insert staff
+        Repo->>DB: INSERT INTO Staff<br/>VALUES (:staff_name, :role,<br/>:phone, :email, TRUE)<br/>RETURNING staff_id<br>  Return staff_id
+      
+        
+        Service->>Repo: 7. Query created staff
+        Repo->>DB: SELECT staff_id, staff_name,<br/>role, phone, email, active<br/>FROM Staff<br/>WHERE staff_id = :new_staff_id<br>Return staff data
+        Controller->>UI: Display created staff
+    end
+    
+    Admin->>UI: 8. ตรวจสอบผลลัพธ์
+    UI->>Admin: Show staff information
