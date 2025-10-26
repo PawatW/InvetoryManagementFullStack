@@ -1,72 +1,32 @@
 sequenceDiagram
-    participant A as Staff (Actor)
-    participant F as Frontend (Web UI)
-    participant C as Controller (OrderController)
-    participant S as Service (OrderService)
-    participant R as Repository (OrderRepository)
-    participant DB as Database
+    actor Sales
+    participant OrdersPage as OrdersPage (app/(dashboard)/orders/page.tsx)
+    participant CustomerHook as useAuthedSWR('/customers')
+    participant ProductHook as useAuthedSWR('/products')
+    participant ApiFetch as apiFetch('/orders', ...)
+    participant Backend as Inventory API
 
-    %% Step 1–2: เริ่มสร้าง Order
-    A->>F: Click "Create Order"
-    F->>C: POST /orders (init create)
-    C->>S: createOrder(requestDTO)
-    S->>R: preloadCustomers()
-    R->>DB: SELECT * FROM Customer
-    DB-->>R: customerList
-    R-->>S: customerList
-    S-->>C: orderFormData
-    C-->>F: display order form + customers
+    Sales->>OrdersPage: เปิดเมนู Orders
+    OrdersPage->>CustomerHook: useAuthedSWR('/customers', token)
+    CustomerHook->>ApiFetch: apiFetch('/customers', { token })
+    ApiFetch->>Backend: GET /customers
+    Backend-->>OrdersPage: รายชื่อลูกค้า
+    OrdersPage->>ProductHook: useAuthedSWR('/products', token)
+    ProductHook->>ApiFetch: apiFetch('/products', { token })
+    ApiFetch->>Backend: GET /products
+    Backend-->>OrdersPage: รายการสินค้า
 
-    %% Step 3–8: เลือกลูกค้า
-    A->>F: Select Customer
-    F->>C: setCustomer(customerId)
-    C->>S: setCustomer(orderObj, customerId)
-    S-->>C: updatedOrderObj
-    C-->>F: show selected customer
-
-    %% Step 9–16: เพิ่มสินค้าในรายการ
-    A->>F: Search Product + Add to Order
-    F->>C: searchProduct(keyword)
-    C->>S: preloadProducts()
-    S->>R: SELECT * FROM Product
-    R->>DB: query products
-    DB-->>R: productList
-    R-->>S: productList
-    S-->>C: filteredProducts
-    C-->>F: display filtered products
-
-    A->>F: Choose Product + Quantity
-    F->>C: addItem(productId, qty)
-    C->>S: validateItem(productId, qty)
-    S-->>C: valid/invalid
-    alt valid
-        C->>S: addItemToOrder(orderObj, productId, qty)
-        S-->>C: updatedOrderObj
-        C-->>F: update item list + total
-    else invalid
-        C-->>F: show validation error
+    Sales->>OrdersPage: กรอกข้อมูล Order แล้ว submit
+    OrdersPage->>OrdersPage: handleCreateOrder(event)
+    OrdersPage->>ApiFetch: apiFetch('/orders', { method: 'POST', body, token })
+    ApiFetch->>Backend: POST /orders payload
+    Backend-->>ApiFetch: สร้าง Order สำเร็จ
+    ApiFetch-->>OrdersPage: OrderId ใหม่
+    OrdersPage->>OrdersPage: form.reset() + setSuccessMessage()
+    OrdersPage->>OrdersPage: mutateAll() / mutateConfirmed() / mutateReady()
+    loop revalidate SWR keys
+        OrdersPage->>ApiFetch: apiFetch('<endpoint>', { token })
+        ApiFetch->>Backend: GET ตาม endpoint
+        Backend-->>OrdersPage: ข้อมูลอัปเดต
     end
-
-    %% Step 17–18: ตรวจสอบและยืนยัน
-    A->>F: Click "Confirm Order"
-    F->>C: confirmOrder()
-    C->>S: validateOrder(orderObj)
-    S-->>C: valid/invalid
-    alt valid
-        C->>S: saveOrder(orderObj)
-        S->>R: insertOrder(order)
-        R->>DB: INSERT INTO "Order" (...)
-        DB-->>R: OK
-        loop items
-            S->>R: insertOrderItem(item)
-            R->>DB: INSERT INTO orderitem(...)
-            DB-->>R: OK
-        end
-        R-->>S: success
-        S-->>C: orderCreated
-        C-->>F: show success summary
-        F-->>A: Display Order Summary
-    else invalid
-        C-->>F: show error message
-        F-->>A: Display Error
-    end
+    OrdersPage-->>Sales: แสดง Order ใหม่และ summary

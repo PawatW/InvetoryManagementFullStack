@@ -1,49 +1,36 @@
 sequenceDiagram
-    actor Warehouse as Staff (Warehouse)
-    participant UI as User Interface
-    participant Controller as StockController
-    participant Service as StockService
-    participant Repo as StockRepository
-    participant DB as PostgreSQL Database
+    actor Warehouse
+    participant RequestsPage as RequestsPage (app/(dashboard)/requests/page.tsx)
+    participant ApprovedHook as useAuthedSWR('/stock/approved-requests')
+    participant ItemsHook as useAuthedSWR(`/requests/${id}/items`)
+    participant ApiFetch as apiFetch(...)
+    participant Backend as Inventory API
 
-    Note over Warehouse,DB: Precondition: Staff logged in (role = Warehouse),<br/>Request status = 'Approved', Product in stock
+    Warehouse->>RequestsPage: เปิดแท็บ "คำขอรอจัดสินค้า"
+    RequestsPage->>ApprovedHook: useAuthedSWR('/stock/approved-requests', token)
+    ApprovedHook->>ApiFetch: apiFetch('/stock/approved-requests', { token })
+    ApiFetch->>Backend: GET /stock/approved-requests
+    Backend-->>RequestsPage: คำขอที่อนุมัติแล้ว
 
-    Warehouse->>UI: 1. เลือกเมนู Fulfill Request
-    UI->>UI: 2. Display Request Form
-    UI->>Controller: Request fulfill form
+    Warehouse->>RequestsPage: เลือกคำขอเพื่อเบิกสินค้า
+    RequestsPage->>ItemsHook: useAuthedSWR(`/requests/${requestId}/items`, token)
+    ItemsHook->>ApiFetch: apiFetch(`/requests/${requestId}/items`, { token })
+    ApiFetch->>Backend: GET /requests/{requestId}/items
+    Backend-->>RequestsPage: รายการสินค้าและจำนวนคงเหลือ
 
-    Controller->>Service: getApprovedRequests()
-    Service->>Repo: Query approved Requests
-    Repo->>DB: 3. SELECT * FROM Request<br/>WHERE status = 'Approved', Return Request list
-    
-    Controller->>UI:display loaded request form
-    Warehouse->>UI: 4. พิมพ์ค้นหา request
-    UI->>Controller: filterRequests(searchTerm)
-    Controller-->>Service: 5. Filter requests,Return filtered results
-    
-    Controller->>UI: Display filtered results
-    
-    Warehouse->>UI: 6. เลือก Request
-    UI->>Controller: getRequestItems(request_id)
-    Controller->>Service: getRequestItems(request_id)
-    Service->>Repo: findByRequestId(request_id)
-    Repo->>DB: SELECT * FROM RequestItem<br/>WHERE request_id = :request_id, Return RequestItem list
-    
-    
-    Controller->>UI: 7. Display RequestItem details
-    
-    Warehouse->>UI: 8. กรอกจำนวนที่จะเบิก
-    UI->>Controller: fulfillRequest(request_item_id, fulfill_qty)
-    Controller->>Service: fulfillRequest(request_item_id, fulfill_qty)
-    
-    Service->>Service: 9. Validate fulfill_qty<br/>(check: qty > 0, qty <= requested, stock available)
-    
-    Note over Service,Controller: If validation fails: Return error to Controller → UI<br/>If validation succeeds: Continue below
-    
-    Warehouse->>UI: 10. กด Confirm Fulfillment
-    Service->>DB: 11① UPDATE RequestItem<br/>SET fulfilled_qty = :fulfill_qty
-    Service->>DB: 11② UPDATE Product<br/>SET stock = stock - :fulfill_qty
-    Service->>DB: 11③ INSERT StockTransaction<br/>(type = 'FULFILL', qty = :fulfill_qty)
-    DB-->>Service: Confirm all updates
-    Service-->>Controller: Return success
-    Controller->>UI: Display success message
+    Warehouse->>RequestsPage: ใส่จำนวนที่จะเบิกสำหรับแต่ละรายการ
+    Warehouse->>RequestsPage: กดปุ่ม "บันทึกการเบิก"
+    RequestsPage->>RequestsPage: handleFulfillAll()
+    loop สำหรับแต่ละรายการที่สามารถเบิกได้
+        RequestsPage->>ApiFetch: apiFetch('/stock/fulfill', { method: 'POST', body: { requestItemId, fulfillQty }, token })
+        ApiFetch->>Backend: POST /stock/fulfill
+        Backend-->>ApiFetch: ผลลัพธ์ของรายการนั้น
+        ApiFetch-->>RequestsPage: อัปเดตสำเร็จ
+    end
+    RequestsPage->>RequestsPage: setSuccessMessage() + setFulfillQuantities({})
+    RequestsPage->>ApprovedHook: mutate()
+    ApprovedHook->>ApiFetch: apiFetch('/stock/approved-requests', { token })
+    ApiFetch->>Backend: GET /stock/approved-requests (refresh)
+    Backend-->>RequestsPage: สถานะล่าสุด
+    RequestsPage->>RequestsPage: mutateReady() + mutateProducts()
+    RequestsPage-->>Warehouse: แจ้งผลการเบิกและสถานะคำขอ

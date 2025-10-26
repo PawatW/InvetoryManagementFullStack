@@ -1,42 +1,25 @@
 sequenceDiagram
-    actor User as Staff/Admin
-    participant UI as User Interface
-    participant Controller as SupplierController
-    participant Service as SupplierService
-    participant Repo as SupplierRepository
-    participant DB as PostgreSQL Database
+    actor Sales as Sales/Warehouse
+    participant SuppliersPage as SuppliersPage (app/(dashboard)/suppliers/page.tsx)
+    participant DataHook as useAuthedSWR('/suppliers')
+    participant ApiFetch as apiFetch('/suppliers', ...)
+    participant Backend as Inventory API
 
-    Note over User,DB: Precondition: User logged in with permission to create supplier
+    Sales->>SuppliersPage: เปิดเมนู Suppliers
+    SuppliersPage->>DataHook: useAuthedSWR('/suppliers', token)
+    DataHook->>ApiFetch: apiFetch('/suppliers', { token })
+    ApiFetch->>Backend: GET /suppliers
+    Backend-->>SuppliersPage: รายชื่อ Supplier
 
-    User->>UI: 1. เลือกเมนู Create Supplier
-    UI->>Controller: Request create supplier form
-    Controller->>UI: 2. Display create supplier form
-    
-    User->>UI: 3. กรอกข้อมูล Supplier ใหม่
-    UI->>Controller: 4. validateSupplier(supplier_data)
-    Controller->>Service: Validate supplier data
-    Service->>Service: Check supplier_name
-    Service->>Repo: Check email duplication
-    Repo->>DB: SELECT email FROM Supplier<br/>WHERE email = :email<br/>Return result
-    
-    alt 
-        Service->>Controller: supplier_name is NULL 
-        Controller->>UI: Show error "กรุณาใส่ชื่อ"
-    else 
-        Service->>Controller: email ซ้ำใน DB 
-        Controller->>UI: Show error "Supplier นี้มีอยู่แล้ว"
-    else Validation Success
-        Service->>Controller: Validation passed
-        User->>UI: 5. กด Confirm Create
-        Controller->>Service: createSupplier(supplier_data)
-        Service->>Repo: 6. Insert supplier
-        Repo->>DB: INSERT INTO Supplier<br/>VALUES (:supplier_name, :address,<br/>:phone, :email)<br/>RETURNING supplier_id<br/>Return supplier_id
-        
-        Service->>Repo: 7. Query created supplier
-        Repo->>DB: SELECT supplier_id, supplier_name,<br/>address, phone, email<br/>FROM Supplier<br/>WHERE supplier_id = :new_supplier_id<br/>Return supplier data
-        
-        Controller->>UI: Display created supplier
-    end
-    
-    User->>UI: 8. ตรวจสอบผลลัพธ์
-    UI->>User: Show supplier information
+    Sales->>SuppliersPage: เปิดฟอร์มเพิ่ม Supplier และ submit
+    SuppliersPage->>SuppliersPage: handleCreate(event)
+    SuppliersPage->>ApiFetch: apiFetch('/suppliers', { method: 'POST', body, token })
+    ApiFetch->>Backend: POST /suppliers payload
+    Backend-->>ApiFetch: สร้าง Supplier สำเร็จ
+    ApiFetch-->>SuppliersPage: Supplier ที่สร้างแล้ว
+    SuppliersPage->>SuppliersPage: form.reset() + setSuccessMessage()
+    SuppliersPage->>DataHook: mutate()
+    DataHook->>ApiFetch: apiFetch('/suppliers', { token })
+    ApiFetch->>Backend: GET /suppliers (refresh)
+    Backend-->>SuppliersPage: รายการล่าสุด
+    SuppliersPage-->>Sales: แสดง Supplier ใหม่

@@ -1,44 +1,50 @@
 sequenceDiagram
     actor Technician
-    participant UI as CreateRequestPage
-    participant C as :RequestController
-    participant S as :RequestService
-    participant DB as Database
+    participant RequestsPage as RequestsPage (app/(dashboard)/requests/page.tsx)
+    participant OrderHook as useAuthedSWR('/orders/confirmed')
+    participant OrderItemsHook as useAuthedSWR(`/orders/${orderId}/items`)
+    participant Totals as loadExistingTotals(orderId)
+    participant ApiFetch as apiFetch(...)
+    participant Backend as Inventory API
 
-    Technician ->> UI: กด "Create Request"
-    UI ->> C: validateRole(staff_id, role from token)
-    C ->> UI: show create request form
+    Technician->>RequestsPage: เปิดเมนู Requests และเลือก "สร้างคำขอ"
+    RequestsPage->>OrderHook: useAuthedSWR('/orders/confirmed', token)
+    OrderHook->>ApiFetch: apiFetch('/orders/confirmed', { token })
+    ApiFetch->>Backend: GET /orders/confirmed
+    Backend-->>RequestsPage: รายการ Order ที่ยืนยันแล้ว
 
-    Technician ->> UI: กดค้นหา Order
-    UI ->> C: getConfirmedOrders() return list<Order>
-    C ->> S: getConfirmedOrders()  return list<Order>
-    S ->> DB: get (Q 2.1 str) return Order list
-    C ->> UI: display Order list
-
-    Technician ->> UI: พิมพ์ค้นหา Order
-    UI ->> C:searhCustomers(keyword)
-    C ->> UI:display order ตามkeywordที่พิมพ์
-    Technician ->> UI: กดเลือก Order
-    UI ->> C: getOrderItems(orderId) return list<orderItem>
-    C ->> S: getOrderItemsbyId(orderId) return list<orderItem>
-    S ->> DB: get (Q 2.2 str) return OrderItem list
-    C ->> UI: display OrderItem list
-    loop
-        Technician ->> UI: เลือกสินค้า + qty
-        UI ->> C: validateProductItem()
-        C ->> S: check NULL (product_id)
-        C ->> UI: display error
-        UI ->> C: update RequestItem[] (in memory)
+    Technician->>RequestsPage: เลือก Order เพื่อสร้างคำขอ
+    RequestsPage->>RequestsPage: handleOrderSelection(orderId)
+    RequestsPage->>OrderItemsHook: useAuthedSWR(`/orders/${orderId}/items`, token)
+    OrderItemsHook->>ApiFetch: apiFetch(`/orders/${orderId}/items`, { token })
+    ApiFetch->>Backend: GET /orders/{orderId}/items
+    Backend-->>RequestsPage: รายการสินค้าใน Order
+    RequestsPage->>Totals: loadExistingTotals(orderId)
+    Totals->>ApiFetch: apiFetch(`/requests?orderId=${orderId}`, { token })
+    ApiFetch->>Backend: GET /requests?orderId=...
+    Backend-->>Totals: คำขอที่เกี่ยวข้อง
+    loop รวมจำนวนที่เคยขอไปแล้ว
+        Totals->>ApiFetch: apiFetch(`/requests/${requestId}/items`, { token })
+        ApiFetch->>Backend: GET /requests/{requestId}/items
+        Backend-->>Totals: รายการสินค้า
     end
+    Totals-->>RequestsPage: Map ของจำนวนที่ขอไว้ก่อนหน้า
 
-    Technician ->> UI: ตรวจสอบ summary
-    UI ->> C: validateRequest
-    
-    Technician ->> UI: กด "Submit Request"
-    UI ->> C: Create request (request)
-    C ->> S: createRequest(request)
-    S ->> DB: INSERT(Q 2.3 str) 
-    loop
-        S ->> DB: INSERT(Q 2.4 str)
+    Technician->>RequestsPage: กรอกสินค้าและจำนวนใน draftItems
+    RequestsPage->>RequestsPage: handleCreateRequest(event)
+    RequestsPage->>RequestsPage: ตรวจสอบปริมาณเทียบ Order และ existing totals
+    alt ตรวจสอบผ่าน
+        RequestsPage->>ApiFetch: apiFetch('/requests', { method: 'POST', body, token })
+        ApiFetch->>Backend: POST /requests payload
+        Backend-->>ApiFetch: RequestId ใหม่
+        ApiFetch-->>RequestsPage: บันทึกสำเร็จ
+        RequestsPage->>RequestsPage: form.reset() + setSuccessMessage()
+        RequestsPage->>RequestsPage: mutatePending() / mutateApproved()
+        loop revalidate SWR keys
+            RequestsPage->>ApiFetch: apiFetch('<endpoint>', { token })
+            ApiFetch->>Backend: GET endpoint
+            Backend-->>RequestsPage: ข้อมูลล่าสุด
+        end
+    else มีข้อผิดพลาด
+        RequestsPage-->>Technician: แสดง error message
     end
- 

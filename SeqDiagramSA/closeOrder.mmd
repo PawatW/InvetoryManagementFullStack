@@ -1,46 +1,33 @@
 sequenceDiagram
-    actor Staff as Staff/Manager
-    participant UI as User Interface
-    participant Controller as OrderController
-    participant Service as OrderService
-    participant Repo as OrderRepository
-    participant DB as PostgreSQL Database
+    actor Sales
+    participant OrdersPage as OrdersPage (app/(dashboard)/orders/page.tsx)
+    participant ReadyHook as useAuthedSWR('/orders/ready-to-close')
+    participant ItemsHook as useAuthedSWR(`/orders/${id}/items`)
+    participant ApiFetch as apiFetch(...)
+    participant Backend as Inventory API
 
-    Note over Staff,DB: Precondition: User logged in with permission to close orders
+    Sales->>OrdersPage: เปิดแท็บ "พร้อมปิด Order"
+    OrdersPage->>ReadyHook: useAuthedSWR('/orders/ready-to-close', token)
+    ReadyHook->>ApiFetch: apiFetch('/orders/ready-to-close', { token })
+    ApiFetch->>Backend: GET /orders/ready-to-close
+    Backend-->>OrdersPage: Order ที่พร้อมปิด
 
-    Staff->>UI: 1. เลือกเมนู Close Order
-    UI->>Controller: Request close order form
-    Controller->>Service: getClosableOrders()
-    Service->>Repo: 2. preload Query orders ready to close
-    Repo->>DB: SELECT o.order_id, o.order_date, o.status<br/>FROM "Order" AS o<br/>WHERE o.status = 'Pending Close'<br/>AND NOT EXISTS (<br/>SELECT 1 FROM OrderItem oi<br/>WHERE oi.order_id = o.order_id<br/>AND oi.remaining_qty > 0)<br/>Return order list
-    
-    Controller->>UI: 3. Display รายการ Order ที่สามารถปิดได้
-    
-    Staff->>UI: 4. เลือก Order ที่ต้องการปิด
-    UI->>Controller: Request order details
-    Controller->>Service: getOrderDetails(order_id)
-    Service->>Repo: Query order items
-    Repo->>DB:  SELECT product_id, quantity,<br/>fulfilled_qty, remaining_qty<br/>FROM OrderItem<br/>WHERE order_id = :order_id<br/>Return order items
-    
-    Controller->>UI: 5.Display รายละเอียดสินค้าใน Order
-    
-    Staff->>UI: 6. ตรวจสอบ Request ของ Order นี้
-    UI->>Controller: Check pending requests
-    Controller->>Service: checkPendingRequests(order_id)
-    Service->>Repo: 7. Query pending requests (ตรวจสอบว่ายังมี request ค้างอยู่หรือไม่)
-    Repo->>DB: SELECT COUNT(*)<br/>FROM Request<br/>WHERE order_id = :order_id<br/>AND status != 'Closed'<br/>Return count
-    
-    alt 
-        Service->>Controller: Count > 0 
-        Controller->>UI: Show error "ยังมีคำขอเบิกสินค้าที่ยังค้างอยู่"
-    else
-        Service->>Controller: No pending requests
-        Controller->>UI: Display confirmation message
-    end
-    
-    Staff->>UI: 8. กด Confirm Close Order
-    UI->>Controller: Confirm close order
-    Controller->>Service: closeOrder(order_id, staff_id)
-    Service->>Repo: 9. Update order status
-    Repo->>DB: UPDATE "Order"<br/>SET status = 'Closed',<br/>closed_date = NOW(),<br/>closed_by = :staff_id<br/>WHERE order_id = :order_id<br/>Return success
-   
+    Sales->>OrdersPage: เลือก Order เพื่อตรวจสอบ
+    OrdersPage->>ItemsHook: useAuthedSWR(`/orders/${orderId}/items`, token)
+    ItemsHook->>ApiFetch: apiFetch(`/orders/${orderId}/items`, { token })
+    ApiFetch->>Backend: GET /orders/{orderId}/items
+    Backend-->>OrdersPage: รายการสินค้าใน Order
+
+    Sales->>OrdersPage: กด "ปิด Order"
+    OrdersPage->>OrdersPage: handleCloseOrder(orderId)
+    OrdersPage->>ApiFetch: apiFetch(`/orders/${orderId}/close`, { method: 'PUT', token })
+    ApiFetch->>Backend: PUT /orders/{id}/close
+    Backend-->>ApiFetch: ปิด Order สำเร็จ
+    ApiFetch-->>OrdersPage: ผลลัพธ์สำเร็จ
+    OrdersPage->>OrdersPage: setSuccessMessage() + ปิด modal
+    OrdersPage->>ReadyHook: mutate()
+    ReadyHook->>ApiFetch: apiFetch('/orders/ready-to-close', { token })
+    ApiFetch->>Backend: GET /orders/ready-to-close (refresh)
+    Backend-->>OrdersPage: รายการล่าสุด
+    OrdersPage->>OrdersPage: mutateAll()
+    OrdersPage-->>Sales: แสดงว่า Order ถูกปิดแล้ว

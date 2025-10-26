@@ -1,36 +1,32 @@
-
 sequenceDiagram
     actor Foreman
-    participant UI as ApproveRequestPage (View)
-    participant C as RequestController
-    participant DB as Database
+    participant RequestsPage as RequestsPage (app/(dashboard)/requests/page.tsx)
+    participant PendingHook as useAuthedSWR('/requests/pending')
+    participant ItemsHook as useAuthedSWR(`/requests/${id}/items`)
+    participant ApiFetch as apiFetch(...)
+    participant Backend as Inventory API
 
-    Foreman ->> UI: กด "Approve Request"
-    UI ->> C: validateRole(staff_id from token)
-    C ->> DB: SELECT staff_id, role FROM Staff WHERE staff_id=? AND active=true
-    DB -->> C: role=Foreman
-    C -->> UI: allow ApproveRequestPage
+    Foreman->>RequestsPage: เปิดแท็บ "คำขอรออนุมัติ"
+    RequestsPage->>PendingHook: useAuthedSWR('/requests/pending', token)
+    PendingHook->>ApiFetch: apiFetch('/requests/pending', { token })
+    ApiFetch->>Backend: GET /requests/pending
+    Backend-->>RequestsPage: รายการคำขอ Pending
 
-    Foreman ->> UI: ดูรายการ Request
-    UI ->> C: getPendingRequests()
-    C ->> DB: SELECT request_id, request_date, staff_id, order_id, status FROM Request WHERE status='Pending'
-    DB -->> C: list<Request>
-    C -->> UI: display pending requests
+    Foreman->>RequestsPage: ขยายคำขอเพื่อดูรายละเอียด
+    RequestsPage->>ItemsHook: useAuthedSWR(`/requests/${requestId}/items`, token)
+    ItemsHook->>ApiFetch: apiFetch(`/requests/${requestId}/items`, { token })
+    ApiFetch->>Backend: GET /requests/{requestId}/items
+    Backend-->>RequestsPage: รายการสินค้าในคำขอ
 
-    Foreman ->> UI: เลือก Request
-    UI ->> C: getRequestItems(requestId)
-    C ->> DB: SELECT product_id, quantity, fulfilled_qty, remaining_qty FROM RequestItem WHERE request_id=?
-    DB -->> C: list<RequestItem>
-    C -->> UI: display Request + items
-
-    Foreman ->> UI: กด Approve / Reject
-    UI ->> C: POST /requests/:id/approve (decision)
-    alt Approve
-        C ->> DB: UPDATE Request SET status='Approved', approved_by=?, approved_date=NOW() WHERE request_id=?
-    else Reject
-        C ->> DB: UPDATE Request SET status='Rejected', approved_by=?, approved_date=NOW() WHERE request_id=?
-    end
-    DB -->> C: success
-    C -->> UI: display confirmation (Approved/Rejected)
-    UI -->> Foreman: show result
-    
+    Foreman->>RequestsPage: กด Approve หรือ Reject
+    RequestsPage->>RequestsPage: handleApprove(requestId, action)
+    RequestsPage->>ApiFetch: apiFetch(`/requests/${requestId}/${action}`, { method: 'PUT', token })
+    ApiFetch->>Backend: PUT /requests/{id}/{approve|reject}
+    Backend-->>ApiFetch: ผลลัพธ์สำเร็จ
+    ApiFetch-->>RequestsPage: อัปเดตสถานะเรียบร้อย
+    RequestsPage->>RequestsPage: setSuccessMessage() + setError(null)
+    RequestsPage->>PendingHook: mutate()
+    PendingHook->>ApiFetch: apiFetch('/requests/pending', { token })
+    ApiFetch->>Backend: GET /requests/pending (refresh)
+    Backend-->>RequestsPage: รายการที่อัปเดตแล้ว
+    RequestsPage-->>Foreman: แสดงผลการอนุมัติ/ปฏิเสธ
