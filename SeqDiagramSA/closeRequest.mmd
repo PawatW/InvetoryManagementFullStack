@@ -1,32 +1,32 @@
 sequenceDiagram
-    actor Staff as Staff (Warehouse/Manager)
-    participant UI as User Interface
-    participant Controller as RequestController
-    participant Service as RequestService
-    participant Repo as RequestRepository
-    participant DB as PostgreSQL Database
+    actor Technician as Technician/Warehouse
+    participant RequestsPage as RequestsPage (app/(dashboard)/requests/page.tsx)
+    participant ReadyHook as useAuthedSWR('/requests/ready-to-close')
+    participant ItemsHook as useAuthedSWR(`/requests/${id}/items`)
+    participant ApiFetch as apiFetch(...)
+    participant Backend as Inventory API
 
-    Note over Staff,DB: Precondition: User logged in with permission to close requests
+    Technician->>RequestsPage: เปิดแท็บ "พร้อมปิดคำขอ"
+    RequestsPage->>ReadyHook: useAuthedSWR('/requests/ready-to-close', token)
+    ReadyHook->>ApiFetch: apiFetch('/requests/ready-to-close', { token })
+    ApiFetch->>Backend: GET /requests/ready-to-close
+    Backend-->>RequestsPage: รายการคำขอที่เบิกครบ
 
-    Staff->>UI: 1. เปิดเมนู Send to Technician / Close Request
-    UI->>Controller: Request closable requests
-    Controller->>Service: getClosableRequests()
-    Service->>Repo: Query requests ready to close
-    Repo->>DB: 2. SELECT r.request_id, r.order_id, r.status<br/>FROM Request AS r<br/>WHERE r.status IN ('Pending')<br/>AND NOT EXISTS (<br/>SELECT 1 FROM RequestItem ri<br/>WHERE ri.request_id = r.request_id<br/>AND ri.remaining_qty > 0)<br>Return request list
- 
-    Controller->>UI: 3. Display requests ที่ preload มา
-    
-    Staff->>UI: 4. เลือก Request ที่พร้อมส่งของ
-    UI->>Controller: Request details
-    Controller->>Service: getRequestItems(request_id)
-    Service->>Repo: Query request items
-    Repo->>DB: 5. SELECT product_id, quantity,<br/>fulfilled_qty<br/>FROM RequestItem<br/>WHERE request_id = :request_id<br>Return request items
- 
-    Controller->>UI: 6. Display รายละเอียดสินค้าใน Request
-    
-    Staff->>UI: 7. กด Confirm ส่งของให้ช่าง
-    UI->>Controller: Confirm close request
-    Controller->>Service: closeRequest(request_id, staff_id)
-    Service->>Repo: Update request status
-    Repo->>DB: 8. UPDATE Request<br/>SET status = 'Closed',<br/>closed_date = NOW(),<br/>closed_by = :staff_id<br/>WHERE request_id = :request_id
-    
+    Technician->>RequestsPage: เลือกคำขอเพื่อดูรายละเอียด
+    RequestsPage->>ItemsHook: useAuthedSWR(`/requests/${requestId}/items`, token)
+    ItemsHook->>ApiFetch: apiFetch(`/requests/${requestId}/items`, { token })
+    ApiFetch->>Backend: GET /requests/{requestId}/items
+    Backend-->>RequestsPage: รายการสินค้า
+
+    Technician->>RequestsPage: กดปุ่ม "ปิดคำขอ"
+    RequestsPage->>RequestsPage: handleCloseRequest(requestId)
+    RequestsPage->>ApiFetch: apiFetch(`/requests/${requestId}/close`, { method: 'PUT', token })
+    ApiFetch->>Backend: PUT /requests/{id}/close
+    Backend-->>ApiFetch: ปิดคำขอสำเร็จ
+    ApiFetch-->>RequestsPage: ผลลัพธ์สำเร็จ
+    RequestsPage->>RequestsPage: setSuccessMessage() + ปิด modal
+    RequestsPage->>ReadyHook: mutate()
+    ReadyHook->>ApiFetch: apiFetch('/requests/ready-to-close', { token })
+    ApiFetch->>Backend: GET /requests/ready-to-close (refresh)
+    Backend-->>RequestsPage: อัปเดตสถานะ
+    RequestsPage-->>Technician: แสดงผลว่าปิดคำขอเรียบร้อย

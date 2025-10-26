@@ -1,41 +1,20 @@
 sequenceDiagram
-    actor User as User
-    participant UI as User Interface
-    participant Controller as AuthController
-    participant Service as AuthService
-    participant Repo as StaffRepository
-    participant DB as PostgreSQL Database
+    actor User
+    participant LoginPage as LoginPage (app/page.tsx)
+    participant AuthContext as useAuth().login
+    participant Http as fetch(`${API_BASE_URL}/login`)
+    participant Jwt as decodeJwtPayload
+    participant Storage as localStorage
+    participant Router as useRouter()
 
-    Note over User,DB: User opens login page
-
-    User->>UI: 1. กรอก username/email และ password
-    UI->>UI: 2. ตรวจสอบว่าช่อง username และ password ไม่ว่าง
-    
-    User->>UI: 3. กดปุ่ม Login
-    UI->>Controller: 4. Authenticate user
-    Controller->>Service: login(username, password)
-    Service->>Repo: Get user by username/email
-    Repo->>DB: SELECT staff_id, staff_name, role,<br/>active, password_hash<br/>FROM Staff<br/>WHERE email = :username<br/>OR staff_id = :username<br>Return user data
-    
-    Service->>Service: 5. Check if username is null
-    alt Username not found
-        Service->>Controller: Return error "บัญชีผู้ใช้ไม่ถูกต้อง"
-        Controller->>UI: Show error
-    end
-    
-    Service->>Service: 6. Check if active = FALSE
-    alt active = FALSE
-        Service->>Controller: Return error "บัญชีถูกระงับ"
-        Controller->>UI: Show error
-    end
-    
-    Service->>Service: 7. Verify password<br/>hash(password_input) vs password_hash
-    alt Password incorrect
-        Service->>Controller: Return error "รหัสผ่านไม่ถูกต้อง"
-        Controller->>UI: Show error
-    end
-    
-    Service->>Service: 8. สร้าง Session/Token
-    Service->>Controller: Return session token + user data
-    Controller->>UI: 9. Login successful
-    UI->>User: 10. Redirect to main menu (based on role)
+    User->>LoginPage: กรอกอีเมลและรหัสผ่าน
+    LoginPage->>LoginPage: handleSubmit(event)
+    LoginPage->>AuthContext: login(email, password)
+    AuthContext->>Http: POST /login { email, password }
+    Http-->>AuthContext: { token }
+    AuthContext->>Jwt: decodeJwtPayload(token)
+    Jwt-->>AuthContext: payload (sub, role)
+    AuthContext->>Storage: localStorage.setItem(STORAGE_KEY, token)
+    AuthContext->>AuthContext: setToken / setStaffId / setRole
+    AuthContext->>Router: router.push('/dashboard')
+    Router-->>User: Redirect ไปหน้าหลัก

@@ -1,24 +1,15 @@
 sequenceDiagram
-    actor User as User
-    participant UI as User Interface
-    participant Controller as AuthController
-    participant Service as AuthService
-    participant Repo as SessionRepository
-    participant DB as PostgreSQL Database
+    actor User
+    participant AppShell as AppShell (components/AppShell.tsx)
+    participant AuthContext as useAuth().logout
+    participant Storage as localStorage
+    participant Router as useRouter()
 
-    Note over User,DB: Precondition: User is logged in
+    Note over User,AppShell: ผู้ใช้ล็อกอินแล้วและอยู่ในหน้า Dashboard
 
-    User->>UI: 1. กดปุ่ม Logout
-    UI->>Controller: Request logout
-    Controller->>Service: logout(staff_id)
-    
-    Service->>Service: 2. ตรวจสอบว่ามี session/token อยู่หรือไม่
-    
-    Service->>Repo: Delete session
-    Repo->>DB: 3. DELETE FROM ActiveSession<br/>WHERE staff_id = :staff_id
-    DB->>Repo: Confirm deletion
-    Repo->>Service: Session deleted
-    
-    Service->>Controller: Logout successful
-    Controller->>UI: 4. Redirect to Login page
-    UI->>User: 5. แสดงข้อความ "ออกจากระบบสำเร็จ"
+    User->>AppShell: Click ปุ่ม Logout
+    AppShell->>AuthContext: logout()
+    AuthContext->>AuthContext: setToken(null) / setStaffId(null) / setRole(null)
+    AuthContext->>Storage: localStorage.removeItem(STORAGE_KEY)
+    AuthContext->>Router: router.push('/')
+    Router-->>User: กลับไปหน้า Login
