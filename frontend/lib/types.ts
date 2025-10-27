@@ -94,7 +94,7 @@ export interface StockTransaction {
 }
 
 export interface PurchaseItem {
-  poItemId: string;
+  poItemId?: string;
   poId: string;
   productId: string;
   quantity: number;
