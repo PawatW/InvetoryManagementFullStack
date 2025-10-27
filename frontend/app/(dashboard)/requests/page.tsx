@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
 import { apiFetch } from '../../../lib/api';
@@ -99,12 +99,14 @@ export default function RequestsPage() {
   const [warehouseBatchState, setWarehouseBatchState] = useState<
     Record<string, { batches: ProductBatch[]; isLoading: boolean; error: string | null; fetched: boolean }>
   >({});
+  const warehouseBatchStateRef = useRef(warehouseBatchState);
   const [requestTransactions, setRequestTransactions] = useState<StockTransaction[]>([]);
   const [isRequestTransactionsLoading, setRequestTransactionsLoading] = useState(false);
   const [requestTransactionsError, setRequestTransactionsError] = useState<string | null>(null);
   const [requestBatchDetails, setRequestBatchDetails] = useState<
     Record<string, { data: ProductBatch | null; loading: boolean; error: string | null; fetched: boolean }>
   >({});
+  const previousWarehouseRequestId = useRef<string | null>(null);
 
   const { data: confirmedOrders } = useAuthedSWR<Order[]>(role === 'TECHNICIAN' ? '/orders/confirmed' : null, token);
   const { data: customers } = useAuthedSWR<Customer[]>('/customers', token);
@@ -398,6 +400,35 @@ export default function RequestsPage() {
   }, [warehouseActiveItems, productById]);
 
   useEffect(() => {
+    if (!isWarehouseModalOpen) {
+      previousWarehouseRequestId.current = null;
+      return;
+    }
+
+    if (warehouseModalRequestId !== previousWarehouseRequestId.current) {
+      previousWarehouseRequestId.current = warehouseModalRequestId ?? null;
+
+      setWarehouseBatchState((prev) => {
+        if (Object.keys(prev).length === 0) {
+          return prev;
+        }
+        return {};
+      });
+
+      setFulfillQuantities((prev) => {
+        if (Object.keys(prev).length === 0) {
+          return prev;
+        }
+        return {};
+      });
+    }
+  }, [isWarehouseModalOpen, warehouseModalRequestId]);
+
+  useEffect(() => {
+    warehouseBatchStateRef.current = warehouseBatchState;
+  }, [warehouseBatchState]);
+
+  useEffect(() => {
     if (!token || !isWarehouseModalOpen) {
       return;
     }
@@ -406,8 +437,9 @@ export default function RequestsPage() {
       return;
     }
 
+    const currentState = warehouseBatchStateRef.current;
     const targets = productIds.filter((productId) => {
-      const entry = warehouseBatchState[productId];
+      const entry = currentState[productId];
       return !entry || (!entry.isLoading && !entry.fetched);
     });
 
@@ -461,7 +493,7 @@ export default function RequestsPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, isWarehouseModalOpen, warehouseActiveItems, warehouseBatchState]);
+  }, [token, isWarehouseModalOpen, warehouseActiveItems]);
 
   useEffect(() => {
     if (!token || !isWarehouseModalOpen || !warehouseModalRequestId) {
