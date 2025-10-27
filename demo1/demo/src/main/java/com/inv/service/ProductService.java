@@ -1,7 +1,9 @@
 package com.inv.service;
 
 import com.inv.model.Product;
+import com.inv.model.ProductBatch;
 import com.inv.repo.ProductRepository;
+import com.inv.repo.ProductBatchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,9 @@ public class ProductService {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private ProductBatchRepository productBatchRepository;
 
     public List<Product> getAllProducts() {
         return productRepository.findAll();
@@ -91,5 +96,13 @@ public class ProductService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
         }
         productRepository.deactivate(productId);
+    }
+
+    public List<ProductBatch> getProductBatches(String productId) {
+        Product existing = productRepository.findById(productId);
+        if (existing == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
+        }
+        return productBatchRepository.findByProduct(productId);
     }
 }
