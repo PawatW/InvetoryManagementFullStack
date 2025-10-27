@@ -3,10 +3,12 @@ export interface Product {
   productName: string;
   description?: string;
   unit?: string;
-  pricePerUnit?: number;
+  costPrice?: number;
+  sellPrice?: number;
   supplierId?: string;
   quantity: number;
   imageUrl?: string;
+  active?: boolean;
 }
 
 export interface Supplier {
@@ -15,6 +17,7 @@ export interface Supplier {
   address?: string;
   phone?: string;
   email?: string;
+  active?: boolean;
 }
 
 export interface Customer {
@@ -23,6 +26,7 @@ export interface Customer {
   address?: string;
   phone?: string;
   email?: string;
+  active?: boolean;
 }
 
 export interface Staff {
@@ -85,4 +89,24 @@ export interface StockTransaction {
   quantity: number;
   staffId: string;
   description?: string;
+  batchId?: string;
+  referenceId?: string;
+}
+
+export interface PurchaseItem {
+  poItemId: string;
+  poId: string;
+  productId: string;
+  quantity: number;
+  unitPrice?: number;
+}
+
+export interface PurchaseOrder {
+  poId: string;
+  poDate: string;
+  supplierId: string;
+  staffId?: string;
+  totalAmount?: number;
+  status: string;
+  items?: PurchaseItem[];
 }

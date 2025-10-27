@@ -48,6 +48,7 @@ public class CustomerService {
         customer.setAddress(address);
         customer.setPhone(phone);
         customer.setEmail(email);
+        customer.setActive(true);
 
         customerRepository.save(customer);
         return customer;
@@ -89,6 +90,14 @@ public class CustomerService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "ไม่สามารถอัปเดตลูกค้าได้ (Unable to update customer)");
         }
         return updated;
+    }
+
+    public void deactivateCustomer(String customerId) {
+        Customer existing = customerRepository.findById(customerId);
+        if (existing == null || !existing.isActive()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบลูกค้า (Customer not found)");
+        }
+        customerRepository.deactivate(customerId);
     }
 
     private String trimToNull(String value) {

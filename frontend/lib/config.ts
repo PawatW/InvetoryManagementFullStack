@@ -6,7 +6,8 @@ export const ROLE_LABELS: Record<string, string> = {
   SALES: 'Sales',
   TECHNICIAN: 'Technician',
   FOREMAN: 'Foreman',
-  WAREHOUSE: 'Warehouse'
+  WAREHOUSE: 'Warehouse',
+  PROCUREMENT: 'Procurement'
 };
 
 export const ROLE_COLORS: Record<string, string> = {
@@ -14,5 +15,6 @@ export const ROLE_COLORS: Record<string, string> = {
   SALES: 'bg-amber-100 text-amber-700',
   TECHNICIAN: 'bg-emerald-100 text-emerald-700',
   FOREMAN: 'bg-sky-100 text-sky-700',
-  WAREHOUSE: 'bg-rose-100 text-rose-700'
+  WAREHOUSE: 'bg-rose-100 text-rose-700',
+  PROCUREMENT: 'bg-indigo-100 text-indigo-700'
 };

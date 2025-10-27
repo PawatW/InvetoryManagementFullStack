@@ -10,6 +10,8 @@ public class StockTransaction {
     private int quantity;
     private String staffId;
     private String description; // ถูกต้องตาม schema ใหม่
+    private String batchId;
+    private String referenceId;
 
     // --- Getters and Setters ---
     public String getTransactionId() { return transactionId; }
@@ -32,4 +34,10 @@ public class StockTransaction {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getBatchId() { return batchId; }
+    public void setBatchId(String batchId) { this.batchId = batchId; }
+
+    public String getReferenceId() { return referenceId; }
+    public void setReferenceId(String referenceId) { this.referenceId = referenceId; }
 }

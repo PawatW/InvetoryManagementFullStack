@@ -47,6 +47,7 @@ public class SupplierService {
         supplier.setAddress(address);
         supplier.setPhone(phone);
         supplier.setEmail(email);
+        supplier.setActive(true);
 
         supplierRepository.save(supplier);
         return supplier;
@@ -81,6 +82,14 @@ public class SupplierService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "ไม่สามารถอัปเดต Supplier ได้ (Unable to update supplier)");
         }
         return updated;
+    }
+
+    public void deactivateSupplier(String supplierId) {
+        Supplier existing = supplierRepository.findById(supplierId);
+        if (existing == null || !existing.isActive()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบ Supplier (Supplier not found)");
+        }
+        supplierRepository.deactivate(supplierId);
     }
 
     private String trimToNull(String value) {
