@@ -105,4 +105,16 @@ public class ProductService {
         }
         return productBatchRepository.findByProduct(productId);
     }
+
+    public ProductBatch getProductBatch(String productId, String batchId) {
+        Product existing = productRepository.findById(productId);
+        if (existing == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
+        }
+        ProductBatch batch = productBatchRepository.findById(batchId);
+        if (batch == null || batch.getProductId() == null || !batch.getProductId().equals(productId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบล็อตสินค้าที่ระบุ (Product batch not found)");
+        }
+        return batch;
+    }
 }

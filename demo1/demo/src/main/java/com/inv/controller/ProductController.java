@@ -60,6 +60,11 @@ public class ProductController {
         return productService.getProductBatches(id);
     }
 
+    @GetMapping("/{productId}/batches/{batchId}")
+    public ProductBatch getProductBatch(@PathVariable String productId, @PathVariable String batchId) {
+        return productService.getProductBatch(productId, batchId);
+    }
+
     @PostMapping("/upload-image")
     public ResponseEntity<Map<String, String>> uploadProductImage(@RequestParam("file") MultipartFile file) {
         String imageUrl = imageService.uploadProductImage(file);

@@ -1,11 +1,11 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
 import { apiFetch } from '../../../lib/api';
 import { useAuthedSWR } from '../../../lib/swr';
-import type { Product, PurchaseItem, PurchaseOrder, StockTransaction, Supplier } from '../../../lib/types';
+import type { Product, ProductBatch, PurchaseItem, PurchaseOrder, StockTransaction, Supplier } from '../../../lib/types';
 import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
 
 interface ReceivableItem extends PurchaseItem {
@@ -27,6 +27,9 @@ export default function StockPage() {
   const [transactionSearch, setTransactionSearch] = useState('');
   const [inspectedTransactionId, setInspectedTransactionId] = useState<string | null>(null);
   const [isTransactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [transactionBatch, setTransactionBatch] = useState<ProductBatch | null>(null);
+  const [isTransactionBatchLoading, setTransactionBatchLoading] = useState(false);
+  const [transactionBatchError, setTransactionBatchError] = useState<string | null>(null);
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
   const [receivingItems, setReceivingItems] = useState<ReceivableItem[]>([]);
   const [isReceiveModalOpen, setReceiveModalOpen] = useState(false);
@@ -115,6 +118,49 @@ export default function StockPage() {
     }
     return sortedTransactions.find((transaction) => transaction.transactionId === inspectedTransactionId) ?? null;
   }, [sortedTransactions, inspectedTransactionId]);
+
+  useEffect(() => {
+    if (!token || !isTransactionModalOpen) {
+      return;
+    }
+    if (!inspectedTransaction || !inspectedTransaction.batchId) {
+      setTransactionBatch(null);
+      setTransactionBatchError(null);
+      setTransactionBatchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTransactionBatchLoading(true);
+    setTransactionBatchError(null);
+    setTransactionBatch(null);
+
+    const fetchBatch = async () => {
+      try {
+        const batch = await apiFetch<ProductBatch>(
+          `/products/${inspectedTransaction.productId}/batches/${inspectedTransaction.batchId}`,
+          { token }
+        );
+        if (!cancelled) {
+          setTransactionBatch(batch ?? null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setTransactionBatchError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลล็อตสินค้าได้');
+        }
+      } finally {
+        if (!cancelled) {
+          setTransactionBatchLoading(false);
+        }
+      }
+    };
+
+    void fetchBatch();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, inspectedTransaction, isTransactionModalOpen]);
 
   const handleStockIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -738,6 +784,9 @@ export default function StockPage() {
                         <button
                           type="button"
                           onClick={() => {
+                            setTransactionBatch(null);
+                            setTransactionBatchError(null);
+                            setTransactionBatchLoading(false);
                             setInspectedTransactionId(transaction.transactionId);
                             setTransactionModalOpen(true);
                           }}
@@ -771,6 +820,9 @@ export default function StockPage() {
                   onClick={() => {
                     setTransactionModalOpen(false);
                     setInspectedTransactionId(null);
+                    setTransactionBatch(null);
+                    setTransactionBatchError(null);
+                    setTransactionBatchLoading(false);
                   }}
                   className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
                 >
@@ -808,6 +860,72 @@ export default function StockPage() {
                   <p className="text-xs font-semibold text-slate-500">รายละเอียดเพิ่มเติม</p>
                   <p className="mt-2 text-sm text-slate-700">{inspectedTransaction.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
                 </div>
+                {inspectedTransaction.batchId ? (
+                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase text-slate-400">รายละเอียดล็อตสินค้า</p>
+                      {isTransactionBatchLoading && <span className="text-xs text-slate-400">กำลังโหลด...</span>}
+                    </div>
+                    {transactionBatchError && (
+                      <div className="rounded-xl bg-red-50 px-4 py-3 text-xs text-red-600">{transactionBatchError}</div>
+                    )}
+                    {!isTransactionBatchLoading && !transactionBatchError && transactionBatch && (
+                      <div className="grid gap-3 text-sm text-slate-700 md:grid-cols-2">
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">Batch ID</p>
+                          <p className="font-mono text-xs text-slate-600">{transactionBatch.batchId}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">สินค้า</p>
+                          <p className="font-medium text-slate-800">{transactionBatch.productId}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">รับเข้าเมื่อ</p>
+                          <p>
+                            {transactionBatch.receivedDate
+                              ? format(new Date(transactionBatch.receivedDate), 'dd MMM yyyy HH:mm')
+                              : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">จำนวนที่รับ</p>
+                          <p className="font-semibold text-slate-800">{transactionBatch.quantityIn}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">คงเหลือ</p>
+                          <p className="font-medium text-slate-800">{transactionBatch.quantityRemaining}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">ราคาทุน/หน่วย</p>
+                          <p>
+                            {transactionBatch.unitCost !== undefined && transactionBatch.unitCost !== null
+                              ? Number(transactionBatch.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                              : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">อ้างอิงใบสั่งซื้อ</p>
+                          <p className="font-medium text-slate-800">{transactionBatch.poId || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-slate-400">วันหมดอายุ</p>
+                          <p>
+                            {transactionBatch.expiryDate
+                              ? format(new Date(transactionBatch.expiryDate), 'dd MMM yyyy')
+                              : '-'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {!isTransactionBatchLoading && !transactionBatchError && !transactionBatch && (
+                      <p className="text-sm text-slate-500">ไม่พบข้อมูลล็อตสินค้าสำหรับธุรกรรมนี้</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+                    ธุรกรรมนี้ไม่ได้อ้างอิงล็อตสินค้า
+                  </div>
+                )}
               </div>
             </div>
           </div>
