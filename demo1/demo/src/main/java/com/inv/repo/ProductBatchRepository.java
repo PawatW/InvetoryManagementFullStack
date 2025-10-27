@@ -61,19 +61,23 @@ public class ProductBatchRepository {
     }
 
     public List<ProductBatch> findAvailableBatches(String productId) {
-        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
-                "FROM ProductBatch WHERE product_id = ? AND quantity_remaining > 0 ORDER BY received_date ASC, batch_id ASC";
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, " +
+                "COALESCE(quantity_remaining, quantity_in) AS quantity_remaining, unit_cost, expiry_date " +
+                "FROM ProductBatch WHERE product_id = ? AND COALESCE(quantity_remaining, quantity_in) > 0 " +
+                "ORDER BY received_date ASC, batch_id ASC";
         return jdbcTemplate.query(sql, this::mapRow, productId);
     }
 
     public List<ProductBatch> findByProduct(String productId) {
-        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, " +
+                "COALESCE(quantity_remaining, quantity_in) AS quantity_remaining, unit_cost, expiry_date " +
                 "FROM ProductBatch WHERE product_id = ? ORDER BY received_date DESC, batch_id DESC";
         return jdbcTemplate.query(sql, this::mapRow, productId);
     }
 
     public List<ProductBatch> findByPurchaseOrder(String poId) {
-        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, " +
+                "COALESCE(quantity_remaining, quantity_in) AS quantity_remaining, unit_cost, expiry_date " +
                 "FROM ProductBatch WHERE po_id = ? ORDER BY received_date DESC, batch_id DESC";
         return jdbcTemplate.query(sql, this::mapRow, poId);
     }

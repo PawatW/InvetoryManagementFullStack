@@ -99,28 +99,45 @@ public class ProductService {
     }
 
     public List<ProductBatch> getProductBatches(String productId) {
-        Product existing = productRepository.findById(productId);
+        String normalizedId = trimToNull(productId);
+        if (normalizedId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาระบุรหัสสินค้า (Product ID is required)");
+        }
+
+        Product existing = productRepository.findById(normalizedId);
         if (existing == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
         }
-        return productBatchRepository.findByProduct(productId);
+        return productBatchRepository.findByProduct(normalizedId);
     }
 
     public List<ProductBatch> getAvailableProductBatches(String productId) {
-        Product existing = productRepository.findById(productId);
+        String normalizedId = trimToNull(productId);
+        if (normalizedId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาระบุรหัสสินค้า (Product ID is required)");
+        }
+
+        Product existing = productRepository.findById(normalizedId);
         if (existing == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
         }
-        return productBatchRepository.findAvailableBatches(productId);
+        return productBatchRepository.findAvailableBatches(normalizedId);
     }
 
     public ProductBatch getProductBatch(String productId, String batchId) {
-        Product existing = productRepository.findById(productId);
+        String normalizedProductId = trimToNull(productId);
+        String normalizedBatchId = trimToNull(batchId);
+
+        if (normalizedProductId == null || normalizedBatchId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาระบุรหัสสินค้าและล็อตสินค้า (Product and batch ID are required)");
+        }
+
+        Product existing = productRepository.findById(normalizedProductId);
         if (existing == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
         }
-        ProductBatch batch = productBatchRepository.findById(batchId);
-        if (batch == null || batch.getProductId() == null || !batch.getProductId().equals(productId)) {
+        ProductBatch batch = productBatchRepository.findById(normalizedBatchId);
+        if (batch == null || batch.getProductId() == null || !batch.getProductId().equals(normalizedProductId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบล็อตสินค้าที่ระบุ (Product batch not found)");
         }
         return batch;
