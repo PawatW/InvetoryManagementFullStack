@@ -89,6 +89,7 @@ export function AddStaffForm({ onStart, onSuccess, onError }: AddStaffFormProps)
             <option value="TECHNICIAN">Technician</option>
             <option value="FOREMAN">Foreman</option>
             <option value="WAREHOUSE">Warehouse</option>
+            <option value="PROCUREMENT">Procurement</option>
             <option value="SALES">Sales</option>
             <option value="ADMIN">Admin</option>
           </select>

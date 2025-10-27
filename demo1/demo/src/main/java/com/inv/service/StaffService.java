@@ -21,7 +21,9 @@ public class StaffService {
     private PasswordEncoder passwordEncoder;
 
     public List<Staff> getAllStaff() {
-        return staffRepository.findAll();
+        List<Staff> result = staffRepository.findAll();
+        result.forEach(member -> member.setPassword(null));
+        return result;
     }
 
     public Staff createStaff(Staff staff) {
@@ -41,5 +43,16 @@ public class StaffService {
 
         staff.setPassword(null);
         return staff;
+    }
+
+    public void updateStaffActive(String staffId, boolean active) {
+        Staff target = staffRepository.findById(staffId);
+        if (target == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบพนักงาน");
+        }
+        if (target.isActive() == active) {
+            return;
+        }
+        staffRepository.updateActive(staffId, active);
     }
 }

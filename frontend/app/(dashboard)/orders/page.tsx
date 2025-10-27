@@ -140,7 +140,7 @@ export default function OrdersPage() {
 
   const totalAmount = useMemo(() => {
     return draftItems.reduce((sum, item) => {
-      const price = productMap.get(item.productId)?.pricePerUnit ?? 0;
+      const price = productMap.get(item.productId)?.sellPrice ?? 0;
       return sum + (item.quantity || 0) * price;
     }, 0);
   }, [draftItems, productMap]);
@@ -181,7 +181,7 @@ export default function OrdersPage() {
       .filter((item) => item.productId && item.quantity > 0)
       .map((item) => {
         const product = productMap.get(item.productId);
-        const unitPrice = product?.pricePerUnit ?? 0;
+        const unitPrice = product?.sellPrice ?? 0;
         return {
           productId: item.productId,
           quantity: item.quantity,
@@ -355,7 +355,7 @@ export default function OrdersPage() {
                 <div className="space-y-3">
                   {draftItems.map((item, index) => {
                     const product = productMap.get(item.productId);
-                    const unitPrice = product?.pricePerUnit ?? 0;
+                    const unitPrice = product?.sellPrice ?? 0;
                     const lineTotal = (item.quantity || 0) * unitPrice;
                     return (
                       <div
@@ -387,7 +387,7 @@ export default function OrdersPage() {
                           }}
                         />
                         <div className="flex flex-col justify-center rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                          <span>ราคา/หน่วย</span>
+                          <span>ราคาขาย</span>
                           <span className="text-sm font-semibold text-slate-800">
                             ฿{unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
@@ -617,7 +617,7 @@ export default function OrdersPage() {
                             <p className="font-medium text-slate-800">{item.productId}</p>
                             <p className="text-xs text-slate-500">จำนวน {item.quantity} • คงเหลือ {item.remainingQty}</p>
                           </div>
-                          <span className="text-xs text-slate-500">ราคา/หน่วย ฿{item.unitPrice.toLocaleString()}</span>
+                          <span className="text-xs text-slate-500">ราคาขาย ฿{item.unitPrice.toLocaleString()}</span>
                         </div>
                       ))}
                     </div>

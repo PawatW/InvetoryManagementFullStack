@@ -5,6 +5,7 @@ import com.inv.model.Request;
 import com.inv.model.RequestItem;
 import com.inv.model.StockTransaction;
 import com.inv.repo.OrderRepository;
+import com.inv.repo.ProductBatchRepository;
 import com.inv.repo.ProductRepository;
 import com.inv.repo.RequestRepository;
 import com.inv.repo.StockTransactionRepository;
@@ -28,6 +29,8 @@ public class StockService {
     @Autowired
     private StockTransactionRepository stockTransactionRepository;
     @Autowired
+    private ProductBatchRepository productBatchRepository;
+    @Autowired
     private RequestRepository requestRepository;
     @Autowired
     private OrderRepository orderRepository;
@@ -38,6 +41,16 @@ public class StockService {
         // 1. Update Stock Quantity
         productRepository.updateQuantity(productId, quantity);
 
+        String batchId = "BATCH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        com.inv.model.ProductBatch batch = new com.inv.model.ProductBatch();
+        batch.setBatchId(batchId);
+        batch.setProductId(productId);
+        batch.setQuantityIn(quantity);
+        batch.setQuantityRemaining(quantity);
+        batch.setUnitCost(java.math.BigDecimal.ZERO);
+        batch.setPoId(null);
+        productBatchRepository.save(batch);
+
         // 2. Record Stock Transaction
         StockTransaction transaction = new StockTransaction();
         String transactionId = "ST-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -46,6 +59,8 @@ public class StockService {
         transaction.setProductId(productId);
         transaction.setQuantity(quantity);
         transaction.setStaffId(staffId);
+        transaction.setBatchId(batchId);
+        transaction.setReferenceId(null);
 
         // สร้าง reference note ตาม use case
         String sanitizedNote = (note != null && !note.isBlank()) ? note : "-";
@@ -87,19 +102,42 @@ public class StockService {
         // ① Update RequestItem
         requestRepository.updateItemFulfillment(requestItemId, fulfillQty);
 
-        // ② Update Stock ใน Product (ส่งค่าติดลบ)
-        productRepository.updateQuantity(item.getProductId(), -fulfillQty);
+        // ② Insert ลง StockTransaction (OUT)
+        List<com.inv.model.ProductBatch> availableBatches = productBatchRepository.findAvailableBatches(item.getProductId());
+        int remainingToFulfill = fulfillQty;
+        for (com.inv.model.ProductBatch batch : availableBatches) {
+            if (remainingToFulfill <= 0) {
+                break;
+            }
+            int available = batch.getQuantityRemaining();
+            int take = Math.min(available, remainingToFulfill);
+            if (take <= 0) {
+                continue;
+            }
+            int updatedRemaining = available - take;
+            productBatchRepository.updateRemaining(batch.getBatchId(), updatedRemaining);
 
-        // ③ Insert ลง StockTransaction (OUT)
-        StockTransaction transaction = new StockTransaction();
-        String transactionId = "ST-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        transaction.setTransactionId(transactionId);
-        transaction.setType("OUT");
-        transaction.setProductId(item.getProductId());
-        transaction.setQuantity(fulfillQty);
-        transaction.setStaffId(warehouseStaffId);
-        transaction.setDescription("Fulfill Request ID " + item.getRequestId());
-        stockTransactionRepository.save(transaction);
+            StockTransaction transaction = new StockTransaction();
+            String transactionId = "ST-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            transaction.setTransactionId(transactionId);
+            transaction.setType("OUT");
+            transaction.setProductId(item.getProductId());
+            transaction.setQuantity(take);
+            transaction.setStaffId(warehouseStaffId);
+            transaction.setDescription("Fulfill Request ID " + item.getRequestId());
+            transaction.setBatchId(batch.getBatchId());
+            transaction.setReferenceId(item.getRequestId());
+            stockTransactionRepository.save(transaction);
+
+            remainingToFulfill -= take;
+        }
+
+        if (remainingToFulfill > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "สินค้าในคลังไม่เพียงพอตามล็อตสินค้า");
+        }
+
+        // ③ Update Stock ใน Product (ส่งค่าติดลบ)
+        productRepository.updateQuantity(item.getProductId(), -fulfillQty);
 
         // 14. & 16. Post-Fulfillment Actions
         checkAndUpdateRequestAndOrderStatus(item.getRequestId(), item.getProductId(), fulfillQty);
@@ -107,7 +145,7 @@ public class StockService {
 
     // แก้ไข: เปลี่ยน Type ของ ID ทั้งหมดเป็น String
     private void checkAndUpdateRequestAndOrderStatus(String requestId, String productId, int fulfillQty) {
-            requestRepository.updateRequestStatus(requestId, "Pending");
+        requestRepository.updateRequestStatus(requestId, "Pending");
 
 
         Request request = requestRepository.findById(requestId);

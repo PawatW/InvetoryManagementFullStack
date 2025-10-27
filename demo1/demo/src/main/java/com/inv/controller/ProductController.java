@@ -48,6 +48,12 @@ public class ProductController {
         return ResponseEntity.ok(updatedProduct);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deactivateProduct(@PathVariable String id) {
+        productService.deactivateProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/upload-image")
     public ResponseEntity<Map<String, String>> uploadProductImage(@RequestParam("file") MultipartFile file) {
         String imageUrl = imageService.uploadProductImage(file);

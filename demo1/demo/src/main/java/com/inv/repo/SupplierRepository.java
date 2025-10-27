@@ -22,17 +22,18 @@ public class SupplierRepository {
         s.setAddress(rs.getString("address")); // แก้ไข: schema ใหม่ใช้ address
         s.setPhone(rs.getString("phone"));     // แก้ไข: schema ใหม่ใช้ phone
         s.setEmail(rs.getString("email"));
+        s.setActive(rs.getBoolean("active"));
         return s;
     }
 
     public List<Supplier> findAll() {
-        String sql = "SELECT supplier_id, supplier_name, address, phone, email FROM Supplier";
+        String sql = "SELECT supplier_id, supplier_name, address, phone, email, active FROM Supplier WHERE active = TRUE";
         return jdbcTemplate.query(sql, this::mapRow);
     }
 
     public Supplier findById(String id) { // รับ String id
         List<Supplier> list = jdbcTemplate.query(
-                "SELECT supplier_id, supplier_name, address, phone, email FROM Supplier WHERE supplier_id = ?",
+                "SELECT supplier_id, supplier_name, address, phone, email, active FROM Supplier WHERE supplier_id = ?",
                 this::mapRow,
                 id
         );
@@ -40,26 +41,31 @@ public class SupplierRepository {
     }
 
     public Supplier findByEmail(String email) {
-        String sql = "SELECT supplier_id, supplier_name, address, phone, email FROM Supplier WHERE email = ?";
+        String sql = "SELECT supplier_id, supplier_name, address, phone, email, active FROM Supplier WHERE email = ?";
         List<Supplier> list = jdbcTemplate.query(sql, this::mapRow, email);
         return list.isEmpty() ? null : list.get(0);
     }
 
     // แก้ไข: save ไม่ return ค่าแล้ว และเพิ่ม supplier_id ในการ insert
     public void save(Supplier s) {
-        String sql = "INSERT INTO Supplier(supplier_id, supplier_name, address, phone, email) VALUES (?,?,?,?,?)";
+        String sql = "INSERT INTO Supplier(supplier_id, supplier_name, address, phone, email, active) VALUES (?,?,?,?,?,?)";
         jdbcTemplate.update(
                 sql,
                 s.getSupplierId(),
                 s.getSupplierName(),
                 s.getAddress(),
                 s.getPhone(),
-                s.getEmail()
+                s.getEmail(),
+                s.isActive()
         );
     }
 
     public void update(String supplierId, String name, String address, String phone, String email) {
         String sql = "UPDATE Supplier SET supplier_name = ?, address = ?, phone = ?, email = ? WHERE supplier_id = ?";
         jdbcTemplate.update(sql, name, address, phone, email, supplierId);
+    }
+
+    public void deactivate(String supplierId) {
+        jdbcTemplate.update("UPDATE Supplier SET active = FALSE WHERE supplier_id = ?", supplierId);
     }
 }
