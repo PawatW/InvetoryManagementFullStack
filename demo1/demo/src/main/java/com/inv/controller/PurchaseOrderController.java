@@ -1,5 +1,6 @@
 package com.inv.controller;
 
+import com.inv.model.ProductBatch;
 import com.inv.model.PurchaseItem;
 import com.inv.model.PurchaseOrder;
 import com.inv.service.PurchaseOrderService;
@@ -46,5 +47,10 @@ public class PurchaseOrderController {
     public ResponseEntity<PurchaseOrder> receiveOrder(@PathVariable("id") String poId, @RequestBody ReceiveRequest request) {
         PurchaseOrder order = purchaseOrderService.receivePurchaseOrder(poId, request.items(), request.staffId());
         return ResponseEntity.ok(order);
+    }
+
+    @GetMapping("/{id}/batches")
+    public List<ProductBatch> getPurchaseOrderBatches(@PathVariable("id") String poId) {
+        return purchaseOrderService.getBatchesForPurchaseOrder(poId);
     }
 }

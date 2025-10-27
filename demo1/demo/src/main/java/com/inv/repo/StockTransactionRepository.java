@@ -49,4 +49,10 @@ public class StockTransactionRepository {
                 "FROM StockTransaction ORDER BY transaction_date DESC";
         return jdbcTemplate.query(sql, this::mapRow);
     }
+
+    public List<StockTransaction> findByReferenceId(String referenceId) {
+        String sql = "SELECT transaction_id, transaction_date, type, product_id, quantity, staff_id, description, batch_id, reference_id " +
+                "FROM StockTransaction WHERE reference_id = ? ORDER BY transaction_date DESC";
+        return jdbcTemplate.query(sql, this::mapRow, referenceId);
+    }
 }

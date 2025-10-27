@@ -23,6 +23,11 @@ public class StockController {
         return stockService.getAllTransactions();
     }
 
+    @GetMapping("/requests/{requestId}/transactions")
+    public List<StockTransaction> getTransactionsForRequest(@PathVariable String requestId) {
+        return stockService.getTransactionsForRequest(requestId);
+    }
+
     @PostMapping("/in")
     public void addStockIn(@RequestBody StockInRequest request, Principal principal) {
         // แก้ไข: ไม่ต้องแปลงเป็น int แล้ว
