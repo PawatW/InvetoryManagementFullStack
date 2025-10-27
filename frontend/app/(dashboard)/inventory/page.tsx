@@ -47,6 +47,16 @@ export default function InventoryPage() {
   const { data: suppliers } = useAuthedSWR<Supplier[]>(canManage ? '/suppliers' : null, token);
   const { data: products, mutate, isLoading } = useAuthedSWR<Product[]>('/products', token, { refreshInterval: 30000 });
 
+  const batchSummary = useMemo(() => {
+    const totalRemaining = productBatches.reduce((acc, batch) => acc + (batch.quantityRemaining ?? 0), 0);
+    const totalReceived = productBatches.reduce((acc, batch) => acc + (batch.quantityIn ?? 0), 0);
+    return {
+      totalBatches: productBatches.length,
+      totalRemaining,
+      totalReceived
+    };
+  }, [productBatches]);
+
   const supplierOptions = useMemo<SearchableOption[]>(() => {
     return (suppliers ?? []).map((supplier) => ({
       value: supplier.supplierId,
@@ -753,9 +763,18 @@ export default function InventoryPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-sm font-semibold text-slate-800">ข้อมูลล็อตสินค้า</p>
-                      {isBatchesLoading && <span className="text-xs text-slate-400">กำลังโหลด...</span>}
+                      <div className="flex flex-col gap-1 text-xs text-slate-400 sm:text-right">
+                        {isBatchesLoading && <span>กำลังโหลด...</span>}
+                        {!isBatchesLoading && productBatches.length > 0 && (
+                          <span>
+                            ทั้งหมด {batchSummary.totalBatches.toLocaleString('th-TH')} ล็อต • รับเข้ารวม{' '}
+                            {batchSummary.totalReceived.toLocaleString('th-TH')} • คงเหลือรวม{' '}
+                            {batchSummary.totalRemaining.toLocaleString('th-TH')}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {batchesError && (
                       <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{batchesError}</div>
