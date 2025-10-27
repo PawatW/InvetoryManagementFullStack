@@ -21,7 +21,10 @@ public class ProductBatchRepository {
         batch.setBatchId(rs.getString("batch_id"));
         batch.setProductId(rs.getString("product_id"));
         batch.setPoId(rs.getString("po_id"));
-        batch.setReceivedDate(rs.getTimestamp("received_date").toLocalDateTime());
+        java.sql.Timestamp received = rs.getTimestamp("received_date");
+        if (received != null) {
+            batch.setReceivedDate(received.toLocalDateTime());
+        }
         batch.setQuantityIn(rs.getInt("quantity_in"));
         batch.setQuantityRemaining(rs.getInt("quantity_remaining"));
         batch.setUnitCost(rs.getBigDecimal("unit_cost"));
@@ -29,6 +32,13 @@ public class ProductBatchRepository {
             batch.setExpiryDate(rs.getDate("expiry_date").toLocalDate());
         }
         return batch;
+    }
+
+    public ProductBatch findById(String batchId) {
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
+                "FROM ProductBatch WHERE batch_id = ?";
+        List<ProductBatch> batches = jdbcTemplate.query(sql, this::mapRow, batchId);
+        return batches.isEmpty() ? null : batches.get(0);
     }
 
     public void save(ProductBatch batch) {
@@ -56,19 +66,20 @@ public class ProductBatchRepository {
         return jdbcTemplate.query(sql, this::mapRow, productId);
     }
 
+    public List<ProductBatch> findByProduct(String productId) {
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
+                "FROM ProductBatch WHERE product_id = ? ORDER BY received_date DESC, batch_id DESC";
+        return jdbcTemplate.query(sql, this::mapRow, productId);
+    }
+
+    public List<ProductBatch> findByPurchaseOrder(String poId) {
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
+                "FROM ProductBatch WHERE po_id = ? ORDER BY received_date DESC, batch_id DESC";
+        return jdbcTemplate.query(sql, this::mapRow, poId);
+    }
+
     public void updateRemaining(String batchId, int remaining) {
         jdbcTemplate.update("UPDATE ProductBatch SET quantity_remaining = ? WHERE batch_id = ?", remaining, batchId);
     }
-    public void List<ProductBatch> findByProductId(@Param("productId") String productId){
-    String sql ="SELECT * FROM product_batches WHERE product_id = :productId ORDER BY received_date ASC";
-    
-    
 
-    // Ensure findById exists (CrudRepository provides this, but check if overridden)
-    // If CrudRepository<ProductBatch, String> is used, this method is inherited.
-    // Optional<ProductBatch> findById(String batchId); // Example if needed explicitly
-
-    // Add this query to find available batches for a product
-    @Query("SELECT * FROM product_batches WHERE product_id = :productId AND quantity_remaining > 0 ORDER BY expiry_date ASC NULLS LAST, received_date ASC")
-    List<ProductBatch> findAvailableBatchesByProductId(@Param("productId") String productId);
 }

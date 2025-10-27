@@ -216,4 +216,12 @@ public class PurchaseOrderService {
         order.setItems(purchaseOrderRepository.findItems(poId));
         return order;
     }
+
+    public List<ProductBatch> getBatchesForPurchaseOrder(String poId) {
+        PurchaseOrder order = purchaseOrderRepository.findById(poId);
+        if (order == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบใบสั่งซื้อ");
+        }
+        return productBatchRepository.findByPurchaseOrder(poId);
+    }
 }

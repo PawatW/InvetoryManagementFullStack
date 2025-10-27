@@ -55,6 +55,21 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{id}/batches")
+    public List<ProductBatch> getProductBatches(@PathVariable String id) {
+        return productService.getProductBatches(id);
+    }
+
+    @GetMapping("/{id}/available-batches")
+    public List<ProductBatch> getAvailableProductBatches(@PathVariable String id) {
+        return productService.getAvailableProductBatches(id);
+    }
+
+    @GetMapping("/{productId}/batches/{batchId}")
+    public ProductBatch getProductBatch(@PathVariable String productId, @PathVariable String batchId) {
+        return productService.getProductBatch(productId, batchId);
+    }
+
     @PostMapping("/upload-image")
     public ResponseEntity<Map<String, String>> uploadProductImage(@RequestParam("file") MultipartFile file) {
         String imageUrl = imageService.uploadProductImage(file);

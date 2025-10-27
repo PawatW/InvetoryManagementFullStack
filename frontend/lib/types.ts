@@ -93,6 +93,17 @@ export interface StockTransaction {
   referenceId?: string;
 }
 
+export interface ProductBatch {
+  batchId: string;
+  productId: string;
+  poId?: string | null;
+  receivedDate?: string | null;
+  quantityIn: number;
+  quantityRemaining: number;
+  unitCost?: number | null;
+  expiryDate?: string | null;
+}
+
 export interface PurchaseItem {
   poItemId?: string;
   poId: string;

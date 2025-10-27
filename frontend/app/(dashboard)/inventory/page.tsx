@@ -1,14 +1,12 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns'; // Make sure format is imported
+import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
 import { useAuthedSWR } from '../../../lib/swr';
 import { apiFetch, uploadProductImage } from '../../../lib/api';
-// Import ProductBatch along with other types
 import type { Product, Supplier, ProductBatch } from '../../../lib/types';
 import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
-
 export default function InventoryPage() {
   const { token, role } = useAuth();
   const [filter, setFilter] = useState('');
@@ -34,7 +32,6 @@ export default function InventoryPage() {
   const [isPriceModalOpen, setPriceModalOpen] = useState(false);
   const [isPriceSubmitting, setIsPriceSubmitting] = useState(false);
 
-
   useEffect(() => {
     setDetailImageError(false);
   }, [selectedProduct]);
@@ -43,10 +40,10 @@ export default function InventoryPage() {
     setEditImageError(false);
   }, [productToEdit]);
 
-  // Determine permissions based on role
-  const canManage = role === 'WAREHOUSE' || role === 'ADMIN'; // Warehouse/Admin can create/edit/deactivate
-  const canEditSellPrice = role === 'SALES' || role === 'ADMIN'; // Sales/Admin can edit sell price
-
+  const canManage = role === 'WAREHOUSE';
+  const canEditSellPrice = role === 'SALES' || role === 'ADMIN';
+  const canCreateCustomers = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
+  const canCreateOrders = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
   const { data: suppliers } = useAuthedSWR<Supplier[]>(canManage ? '/suppliers' : null, token);
   const { data: products, mutate, isLoading } = useAuthedSWR<Product[]>('/products', token, { refreshInterval: 30000 });
 
@@ -153,7 +150,7 @@ export default function InventoryPage() {
   };
 
   const handleDeleteProduct = async (product: Product) => {
-    if (!token || !canManage) return; // Ensure permission
+    if (!token) return;
     const confirmed = window.confirm(`ต้องการปิดใช้งานสินค้า ${product.productName} หรือไม่?`);
     if (!confirmed) {
       return;
@@ -182,7 +179,7 @@ export default function InventoryPage() {
 
   const handleUpdateProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !productToEdit || !canManage) return; // Ensure permission
+    if (!token || !productToEdit) return;
 
     const formData = new FormData(event.currentTarget);
     const productName = String(formData.get('productName') ?? '').trim();
@@ -198,12 +195,12 @@ export default function InventoryPage() {
     setSuccessMessage(null);
     setIsUpdateSubmitting(true);
 
-    let finalImageUrl: string | undefined = productToEdit.imageUrl ?? undefined; // Use undefined as default
+    let imageUrl: string | null = productToEdit.imageUrl ?? null;
 
     if (imageFile instanceof File && imageFile.size > 0) {
       try {
         const uploadResult = await uploadProductImage(imageFile, token);
-        finalImageUrl = uploadResult.url; // Assign string or undefined
+        imageUrl = uploadResult.url;
       } catch (uploadError) {
         setIsUpdateSubmitting(false);
         setError(uploadError instanceof Error ? uploadError.message : 'ไม่สามารถอัปโหลดรูปภาพได้');
@@ -211,14 +208,11 @@ export default function InventoryPage() {
       }
     }
 
-    // Prepare payload, ensuring types match string | undefined
-    const payload: Partial<Product> = {
+    const payload: Record<string, unknown> = {
       productName,
-      description: description || undefined, // Use undefined if description is empty string
-      imageUrl: finalImageUrl,             // Use finalImageUrl which is string | undefined
-      sellPrice: productToEdit.sellPrice // Keep the existing sell price when Warehouse edits
+      description: description || null,
+      imageUrl
     };
-
 
     try {
       const updatedProduct = await apiFetch<Product>(`/products/${productToEdit.productId}`, {
@@ -239,9 +233,9 @@ export default function InventoryPage() {
     }
   };
 
-   const handleUpdateSellPrice = async (event: FormEvent<HTMLFormElement>) => {
+  const handleUpdateSellPrice = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !priceEditProduct || !canEditSellPrice) return; // Ensure permission
+    if (!token || !priceEditProduct) return;
 
     const formData = new FormData(event.currentTarget);
     const sellPriceRaw = formData.get('sellPrice');
@@ -257,13 +251,11 @@ export default function InventoryPage() {
     setIsPriceSubmitting(true);
 
     try {
-      const payload: Partial<Product> = {
-          productName: priceEditProduct.productName,
-          sellPrice: parsed
-          // Assuming the backend endpoint for sales/admin requires productName and sellPrice
-          // If it needs *all* fields, copy logic from handleUpdateProduct but modify sellPrice
-          // description: priceEditProduct.description ?? undefined, // Example if all fields needed
-          // imageUrl: priceEditProduct.imageUrl ?? undefined,     // Example if all fields needed
+      const payload = {
+        productName: priceEditProduct.productName,
+        description: priceEditProduct.description ?? null,
+        imageUrl: priceEditProduct.imageUrl ?? null,
+        sellPrice: parsed
       };
 
       const updatedProduct = await apiFetch<Product>(`/products/${priceEditProduct.productId}`, {
@@ -273,7 +265,8 @@ export default function InventoryPage() {
       });
 
       setSuccessMessage('อัปเดตราคาขายมาตรฐานเรียบร้อย');
-      handleClosePriceEdit();
+      setPriceModalOpen(false);
+      setPriceEditProduct(null);
       setSelectedProduct((prev) => (prev && prev.productId === updatedProduct.productId ? updatedProduct : prev));
       mutate();
     } catch (err) {
@@ -283,10 +276,9 @@ export default function InventoryPage() {
     }
   };
 
-
   const handleCreateProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !canManage) return; // Ensure permission
+    if (!token) return;
     const form = event.currentTarget;
     setError(null);
     setSuccessMessage(null);
@@ -353,9 +345,7 @@ export default function InventoryPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">
-            {role === 'SALES' ? 'Products' : 'Inventory'} {/* Dynamic Title */}
-        </h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Inventory</h1>
       </header>
 
       {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
@@ -374,7 +364,7 @@ export default function InventoryPage() {
           />
           <div className="flex flex-col items-start gap-2 md:items-end">
             <div className="flex w-full flex-wrap gap-2 md:justify-end">
-              {canManage && ( // Only show create button for Warehouse/Admin
+              {canManage && (
                 <button
                   type="button"
                   onClick={() => {
@@ -389,6 +379,7 @@ export default function InventoryPage() {
                   เพิ่มสินค้าใหม่
                 </button>
               )}
+
             </div>
             <p className="text-xs text-slate-400">แสดง {filteredProducts.length} จาก {products?.length ?? 0} รายการ</p>
           </div>
@@ -437,7 +428,7 @@ export default function InventoryPage() {
                       ? Number(product.sellPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })
                       : '-'}
                   </td>
-                   <td className="px-4 py-3 text-right text-sm">
+                  <td className="px-4 py-3 text-right text-sm">
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
@@ -446,7 +437,7 @@ export default function InventoryPage() {
                       >
                         ดูรายละเอียด
                       </button>
-                      {canEditSellPrice && ( // Show price edit button for Sales/Admin
+                      {canEditSellPrice && (
                         <button
                           type="button"
                           onClick={() => handleOpenPriceEdit(product)}
@@ -455,7 +446,7 @@ export default function InventoryPage() {
                           ปรับราคาขาย
                         </button>
                       )}
-                      {canManage && ( // Show edit/deactivate buttons for Warehouse/Admin
+                      {canManage && (
                         <>
                           <button
                             type="button"
@@ -483,8 +474,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
-       {/* Create Modal - Only shown if canManage */}
-       {canManage && isCreateModalOpen && (
+      {canManage && isCreateModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl">
@@ -506,8 +496,7 @@ export default function InventoryPage() {
                   </button>
                 </div>
                 <form key={formResetKey} onSubmit={handleCreateProduct} className="mt-6 space-y-6">
-                  {/* Form fields for creating product */}
-                   <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">ชื่อสินค้า</label>
                       <input name="productName" required placeholder="เช่น สายไฟ 2x2.5" />
@@ -526,16 +515,19 @@ export default function InventoryPage() {
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">Supplier</label>
                       <SearchableSelect
-                        key={`supplier-${formResetKey}`}
-                        name="supplierId"
+                        key={`supplier-${formResetKey}`} // ใช้ formKey เพื่อ reset ค่าตอนเปิด modal ใหม่
+                        name="supplierId" // อาจไม่จำเป็นถ้าใช้ State แต่ใส่ไว้เผื่อ
                         value={selectedSupplierId}
-                        onChange={setSelectedSupplierId}
+                        onChange={setSelectedSupplierId} // อัปเดต State โดยตรง
+                        // เพิ่ม option เริ่มต้น และรวมกับ supplierOptions
                         options={[{ value: '', label: 'เลือก Supplier' }, ...supplierOptions]}
                         placeholder="เลือก Supplier"
                         searchPlaceholder="ค้นหา Supplier..."
                         emptyMessage="ไม่พบ Supplier"
+                        // ทำให้ disabled ถ้าไม่มีตัวเลือก (ไม่นับ option เริ่มต้น)
                         disabled={supplierOptions.length === 0}
                       />
+                      {/* (Optional) แสดงข้อความถ้าไม่มี supplier */}
                       {supplierOptions.length === 0 && (
                         <p className="text-xs text-slate-500">ยังไม่มีข้อมูล Supplier โปรดเพิ่มในเมนู Suppliers</p>
                       )}
@@ -573,9 +565,8 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* Edit Modal - Only shown if canManage */}
-       {canManage && productToEdit && isEditModalOpen && (
-         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
+      {canManage && productToEdit && isEditModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl">
               <div className="max-h-[85vh] overflow-y-auto p-6">
@@ -593,11 +584,11 @@ export default function InventoryPage() {
                   </button>
                 </div>
                 <form key={editFormResetKey} onSubmit={handleUpdateProduct} className="mt-6 space-y-6">
-                   <div className="space-y-2">
+                  <div className="space-y-2">
                     <label className="block text-xs font-medium text-slate-500">ชื่อสินค้า</label>
                     <input name="productName" required defaultValue={productToEdit.productName} />
                   </div>
-                   <div className="space-y-2">
+                  <div className="space-y-2">
                     <label className="block text-xs font-medium text-slate-500">คำอธิบาย</label>
                     <textarea name="description" rows={3} defaultValue={productToEdit.description ?? ''} placeholder="ระบุคำอธิบายสินค้า" />
                   </div>
@@ -606,8 +597,8 @@ export default function InventoryPage() {
                     <input name="imageFile" type="file" accept="image/*" className="block w-full" />
                     <p className="text-xs text-slate-400">หากไม่เลือกรูปใหม่ ระบบจะใช้รูปเดิมโดยอัตโนมัติ</p>
                   </div>
-                   {productToEdit.imageUrl && !isEditImageError && (
-                     <div className="space-y-2">
+                  {productToEdit.imageUrl && !isEditImageError && (
+                    <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">รูปปัจจุบัน</label>
                       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                         <img
@@ -618,7 +609,7 @@ export default function InventoryPage() {
                         />
                       </div>
                     </div>
-                   )}
+                  )}
                   <div className="flex items-center justify-end gap-3">
                     <button
                       type="button"
@@ -640,9 +631,8 @@ export default function InventoryPage() {
             </div>
           </div>
         </div>
-       )}
+      )}
 
-      {/* Price Edit Modal - Only shown if canEditSellPrice */}
       {canEditSellPrice && priceEditProduct && isPriceModalOpen && (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-900/60">
           <div className="flex min-h-full items-center justify-center p-4">
@@ -676,7 +666,7 @@ export default function InventoryPage() {
                       }
                       required
                     />
-                     <p className="text-xs text-slate-400">กรอกเฉพาะค่าที่ต้องการบันทึกใหม่</p>
+                    <p className="text-xs text-slate-400">กรอกเฉพาะค่าที่ต้องการบันทึกใหม่</p>
                   </div>
                   <div className="flex items-center justify-end gap-3">
                     <button
@@ -701,8 +691,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* Detail Modal */}
-       {selectedProduct && isDetailModalOpen && (
+      {selectedProduct && isDetailModalOpen && (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-900/60">
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl">
@@ -720,6 +709,7 @@ export default function InventoryPage() {
                     ปิด
                   </button>
                 </div>
+
                 <div className="mt-6 space-y-6">
                   {selectedProduct.imageUrl && !isDetailImageError && (
                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
@@ -731,7 +721,8 @@ export default function InventoryPage() {
                       />
                     </div>
                   )}
-                   <div className="grid gap-4 md:grid-cols-2">
+
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <p className="text-xs font-semibold uppercase text-slate-400">รหัสสินค้า</p>
                       <p className="font-mono text-sm text-slate-700">{selectedProduct.productId}</p>
@@ -771,21 +762,20 @@ export default function InventoryPage() {
                       </p>
                     </div>
                   </div>
-                   {/* Batch Details Section */}
                   <div className="space-y-3">
-                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                         <p className="text-sm font-semibold text-slate-800">ข้อมูลล็อตสินค้า</p>
-                         <div className="flex flex-col gap-1 text-xs text-slate-400 sm:text-right">
-                           {isBatchesLoading && <span>กำลังโหลด...</span>}
-                           {!isBatchesLoading && productBatches.length > 0 && (
-                             <span>
-                               ทั้งหมด {batchSummary.totalBatches.toLocaleString('th-TH')} ล็อต • รับเข้ารวม{' '}
-                               {batchSummary.totalReceived.toLocaleString('th-TH')} • คงเหลือรวม{' '}
-                               {batchSummary.totalRemaining.toLocaleString('th-TH')}
-                             </span>
-                           )}
-                         </div>
-                       </div>
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm font-semibold text-slate-800">ข้อมูลล็อตสินค้า</p>
+                      <div className="flex flex-col gap-1 text-xs text-slate-400 sm:text-right">
+                        {isBatchesLoading && <span>กำลังโหลด...</span>}
+                        {!isBatchesLoading && productBatches.length > 0 && (
+                          <span>
+                            ทั้งหมด {batchSummary.totalBatches.toLocaleString('th-TH')} ล็อต • รับเข้ารวม{' '}
+                            {batchSummary.totalReceived.toLocaleString('th-TH')} • คงเหลือรวม{' '}
+                            {batchSummary.totalRemaining.toLocaleString('th-TH')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     {batchesError && (
                       <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{batchesError}</div>
                     )}

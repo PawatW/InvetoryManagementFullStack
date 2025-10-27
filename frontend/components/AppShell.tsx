@@ -16,17 +16,17 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Overview' },
   {
-  href: '/inventory',
-  label: 'Inventory',
-  roles: ['WAREHOUSE', 'ADMIN', 'SALES'], // <-- เพิ่ม 'SALES'
-  labelByRole: { SALES: 'Products' } // <-- เพิ่ม label สำหรับ SALES
-},
+    href: '/inventory',
+    label: 'Inventory',
+    roles: ['WAREHOUSE', 'ADMIN', 'SALES'],
+    labelByRole: { SALES: 'Products' }
+  },
   { href: '/orders', label: 'Orders', roles: ['SALES', 'TECHNICIAN', 'ADMIN'] },
   { href: '/requests', label: 'Requests', roles: ['TECHNICIAN', 'FOREMAN', 'WAREHOUSE', 'ADMIN'] },
   { href: '/stock', label: 'Stock Ops', roles: ['WAREHOUSE', 'ADMIN'] },
   { href: '/customers', label: 'Customers', roles: ['SALES', 'TECHNICIAN', 'ADMIN'] },
   { href: '/suppliers', label: 'Suppliers', roles: ['WAREHOUSE', 'SALES', 'ADMIN'] },
-  { href: '/procurement/purchase-orders', label: 'Purchase Orders', roles: ['WAREHOUSE', 'PROCUREMENT', 'ADMIN'] },
+  { href: '/purchase-orders', label: 'Purchase Orders', roles: ['WAREHOUSE', 'PROCUREMENT', 'ADMIN'] },
   { href: '/admin/staff', label: 'Staff', roles: ['ADMIN'] }
 ];
 
@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 space-y-1 p-4">
           {items.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const displayLabel = (role && item.labelByRole?.[role]) || item.label;
             return (
               <Link
                 key={item.href}
@@ -58,7 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   active ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 )}
               >
-                <span>{item.label}</span>
+                <span>{displayLabel}</span>
                 {active && <span className="h-2 w-2 rounded-full bg-primary-400" />}
               </Link>
             );
