@@ -7,10 +7,12 @@ public class Product {
     private String productName;
     private String description;
     private String unit;
-    private BigDecimal pricePerUnit;
+    private BigDecimal costPrice;
+    private BigDecimal sellPrice;
     private String supplierId; // แก้เป็น String
     private int quantity;
     private String imageUrl;
+    private boolean active;
 
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
@@ -21,8 +23,11 @@ public class Product {
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
 
-    public BigDecimal getPricePerUnit() { return pricePerUnit; }
-    public void setPricePerUnit(BigDecimal pricePerUnit) { this.pricePerUnit = pricePerUnit; }
+    public BigDecimal getCostPrice() { return costPrice; }
+    public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
+
+    public BigDecimal getSellPrice() { return sellPrice; }
+    public void setSellPrice(BigDecimal sellPrice) { this.sellPrice = sellPrice; }
 
     public String getProductId() { return productId; }
     public void setProductId(String productId) { this.productId = productId; }
@@ -35,5 +40,8 @@ public class Product {
 
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 
 }

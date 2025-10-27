@@ -36,4 +36,10 @@ public class SupplierController {
         Supplier updatedSupplier = supplierService.updateSupplier(id, supplier);
         return ResponseEntity.ok(updatedSupplier);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deactivateSupplier(@PathVariable String id) {
+        supplierService.deactivateSupplier(id);
+        return ResponseEntity.noContent().build();
+    }
 }

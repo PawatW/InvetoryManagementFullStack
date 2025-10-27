@@ -26,4 +26,12 @@ public class StaffController {
     public List<Staff> getAllStaff() {
         return staffService.getAllStaff();
     }
+
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<Void> updateStaffActive(@PathVariable("id") String staffId, @RequestBody ActiveRequest request) {
+        staffService.updateStaffActive(staffId, request.active());
+        return ResponseEntity.noContent().build();
+    }
+
+    public record ActiveRequest(boolean active) {}
 }

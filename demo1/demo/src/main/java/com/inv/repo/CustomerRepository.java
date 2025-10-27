@@ -22,17 +22,18 @@ public class CustomerRepository {
         c.setAddress(rs.getString("address"));
         c.setPhone(rs.getString("phone"));
         c.setEmail(rs.getString("email"));
+        c.setActive(rs.getBoolean("active"));
         return c;
     }
 
     public List<Customer> findAll() {
-        String sql = "SELECT customer_id, customer_name, address, phone, email FROM Customer";
+        String sql = "SELECT customer_id, customer_name, address, phone, email, active FROM Customer WHERE active = TRUE";
         return jdbcTemplate.query(sql, this::mapRow);
     }
 
     public Customer findById(String id) { // รับ String id
         List<Customer> list = jdbcTemplate.query(
-                "SELECT customer_id, customer_name, address, phone, email FROM Customer WHERE customer_id = ?",
+                "SELECT customer_id, customer_name, address, phone, email, active FROM Customer WHERE customer_id = ?",
                 this::mapRow,
                 id
         );
@@ -40,29 +41,33 @@ public class CustomerRepository {
     }
 
     public Customer findByPhone(String phone) {
-        String sql = "SELECT customer_id, customer_name, address, phone, email FROM Customer WHERE phone = ?";
+        String sql = "SELECT customer_id, customer_name, address, phone, email, active FROM Customer WHERE phone = ?";
         List<Customer> list = jdbcTemplate.query(sql, this::mapRow, phone);
         return list.isEmpty() ? null : list.get(0);
     }
 
     public Customer findByEmail(String email) {
-        String sql = "SELECT customer_id, customer_name, address, phone, email FROM Customer WHERE email = ?";
+        String sql = "SELECT customer_id, customer_name, address, phone, email, active FROM Customer WHERE email = ?";
         List<Customer> list = jdbcTemplate.query(sql, this::mapRow, email);
         return list.isEmpty() ? null : list.get(0);
     }
 
     // แก้ไข: save ไม่ return ค่าแล้ว และเพิ่ม customer_id ในการ insert
     public void save(Customer c) {
-        String sql = "INSERT INTO Customer(customer_id, customer_name, address, phone, email) VALUES (?,?,?,?,?)";
+        String sql = "INSERT INTO Customer(customer_id, customer_name, address, phone, email, active) VALUES (?,?,?,?,?,?)";
         jdbcTemplate.update(
                 sql,
                 c.getCustomerId(),
-                c.getCustomerName(), c.getAddress(), c.getPhone(), c.getEmail()
+                c.getCustomerName(), c.getAddress(), c.getPhone(), c.getEmail(), c.isActive()
         );
     }
 
     public void update(String customerId, String name, String address, String phone, String email) {
         String sql = "UPDATE Customer SET customer_name = ?, address = ?, phone = ?, email = ? WHERE customer_id = ?";
         jdbcTemplate.update(sql, name, address, phone, email, customerId);
+    }
+
+    public void deactivate(String customerId) {
+        jdbcTemplate.update("UPDATE Customer SET active = FALSE WHERE customer_id = ?", customerId);
     }
 }

@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,20 +30,16 @@ public class ProductService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาระบุชื่อสินค้า (Product name is required)");
         }
 
-        if (product.getQuantity() < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "จำนวนสินค้าเริ่มต้นต้องไม่น้อยกว่า 0 (Quantity must be >= 0)");
-        }
-
-        if (product.getPricePerUnit() != null && product.getPricePerUnit().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ราคา/หน่วยต้องมากกว่า 0 (Price per unit must be greater than 0)");
-        }
-
         product.setProductId("PROD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         product.setProductName(name);
         product.setDescription(trimToNull(product.getDescription()));
         product.setUnit(trimToNull(product.getUnit()));
         product.setSupplierId(trimToNull(product.getSupplierId()));
         product.setImageUrl(trimToNull(product.getImageUrl()));
+        product.setQuantity(0);
+        product.setCostPrice(product.getCostPrice() != null ? product.getCostPrice() : java.math.BigDecimal.ZERO);
+        product.setSellPrice(product.getSellPrice() != null ? product.getSellPrice() : java.math.BigDecimal.ZERO);
+        product.setActive(true);
 
         productRepository.save(product);
         return product;
@@ -76,12 +71,25 @@ public class ProductService {
         String description = payload.getDescription() != null ? trimToNull(payload.getDescription()) : existing.getDescription();
         String imageUrl = payload.getImageUrl() != null ? trimToNull(payload.getImageUrl()) : existing.getImageUrl();
 
-        productRepository.updateDetails(productId, name, description, imageUrl);
+        java.math.BigDecimal sellPrice = payload.getSellPrice() != null ? payload.getSellPrice() : existing.getSellPrice();
+        if (sellPrice != null && sellPrice.signum() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ราคาขายต้องไม่เป็นค่าติดลบ (Sell price must be >= 0)");
+        }
+
+        productRepository.updateDetails(productId, name, description, imageUrl, sellPrice);
 
         Product updated = productRepository.findById(productId);
         if (updated == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "ไม่สามารถอัปเดตสินค้าได้ (Unable to update product)");
         }
         return updated;
+    }
+
+    public void deactivateProduct(String productId) {
+        Product existing = productRepository.findById(productId);
+        if (existing == null || !existing.isActive()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
+        }
+        productRepository.deactivate(productId);
     }
 }

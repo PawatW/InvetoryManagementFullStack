@@ -36,4 +36,10 @@ public class CustomerController {
         Customer updatedCustomer = customerService.updateCustomer(id, customer);
         return ResponseEntity.ok(updatedCustomer);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deactivateCustomer(@PathVariable String id) {
+        customerService.deactivateCustomer(id);
+        return ResponseEntity.noContent().build();
+    }
 }
