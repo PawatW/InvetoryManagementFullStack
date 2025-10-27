@@ -26,6 +26,7 @@ export default function SuppliersPage() {
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [editFormResetKey, setEditFormResetKey] = useState(0);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [deactivatingSupplierId, setDeactivatingSupplierId] = useState<string | null>(null);
 
 
   const canCreate = role === 'SALES';
@@ -118,6 +119,38 @@ export default function SuppliersPage() {
     setEditingSupplierId(null);
     setEditFormResetKey((prev) => prev + 1);
     setIsUpdating(false);
+  };
+
+  const handleDeactivateSupplier = async (supplier: Supplier) => {
+    if (!token) return;
+    const confirmed = window.confirm(`ต้องการปิดการใช้งาน Supplier ${supplier.supplierName} หรือไม่?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setDeactivatingSupplierId(supplier.supplierId);
+
+    try {
+      await apiFetch(`/suppliers/${supplier.supplierId}`, {
+        method: 'DELETE',
+        token
+      });
+      if (inspectedSupplierId === supplier.supplierId) {
+        setInspectedSupplierId(null);
+        setDetailModalOpen(false);
+      }
+      if (editingSupplierId === supplier.supplierId) {
+        handleCloseEditSupplier();
+      }
+      await mutate();
+      setSuccessMessage('ปิดการใช้งาน Supplier เรียบร้อย');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถปิดการใช้งาน Supplier ได้');
+    } finally {
+      setDeactivatingSupplierId(null);
+    }
   };
 
   const handleUpdateSupplier = async (event: FormEvent<HTMLFormElement>) => {
@@ -250,13 +283,23 @@ export default function SuppliersPage() {
                             {isSelected ? 'ซ่อน' : 'ดูรายละเอียด'}
                           </button>
                           {canCreate && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditSupplier(supplier.supplierId)}
-                              className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                            >
-                              แก้ไข
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditSupplier(supplier.supplierId)}
+                                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                              >
+                                แก้ไข
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeactivateSupplier(supplier)}
+                                disabled={deactivatingSupplierId === supplier.supplierId}
+                                className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {deactivatingSupplierId === supplier.supplierId ? 'กำลังปิดใช้งาน...' : 'ปิดใช้งาน'}
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>

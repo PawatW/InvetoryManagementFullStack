@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS Supplier (
     supplier_name VARCHAR(100) NOT NULL,
     address VARCHAR(200),
     phone VARCHAR(20),
-    email VARCHAR(100) UNIQUE
+    email VARCHAR(100) UNIQUE,
+    active BOOLEAN DEFAULT TRUE
 );
 
 -- ========================
@@ -17,10 +18,12 @@ CREATE TABLE IF NOT EXISTS Product (
     product_name VARCHAR(100) NOT NULL,
     description TEXT,
     unit VARCHAR(50),
-    price_per_unit DECIMAL(10,2) CHECK (price_per_unit > 0),
+    cost_price DECIMAL(10,2) DEFAULT 0 CHECK (cost_price >= 0),
+    sell_price DECIMAL(10,2) DEFAULT 0 CHECK (sell_price >= 0),
     quantity INT DEFAULT 0 CHECK (quantity >= 0),
     supplier_id VARCHAR(20) REFERENCES Supplier(supplier_id),
-    image_url VARCHAR(255)
+    image_url VARCHAR(255),
+    active BOOLEAN DEFAULT TRUE
 );
 
 -- ========================
@@ -31,7 +34,8 @@ CREATE TABLE IF NOT EXISTS Customer (
     customer_name VARCHAR(100) NOT NULL,
     address VARCHAR(200),
     phone VARCHAR(20),
-    email VARCHAR(100) UNIQUE
+    email VARCHAR(100) UNIQUE,
+    active BOOLEAN DEFAULT TRUE
 );
 
 -- ========================
@@ -102,6 +106,34 @@ CREATE TABLE IF NOT EXISTS RequestItem (
 -- ========================
 -- StockTransaction
 -- ========================
+CREATE TABLE IF NOT EXISTS PurchaseOrder (
+    po_id VARCHAR(20) PRIMARY KEY,
+    po_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    supplier_id VARCHAR(20) REFERENCES Supplier(supplier_id),
+    staff_id VARCHAR(20) REFERENCES Staff(staff_id),
+    total_amount DECIMAL(12,2) DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'New order'
+);
+
+CREATE TABLE IF NOT EXISTS PurchaseItem (
+    po_item_id VARCHAR(20) PRIMARY KEY,
+    po_id VARCHAR(20) REFERENCES PurchaseOrder(po_id),
+    product_id VARCHAR(20) REFERENCES Product(product_id),
+    quantity INT CHECK (quantity > 0),
+    unit_price DECIMAL(10,2) CHECK (unit_price > 0)
+);
+
+CREATE TABLE IF NOT EXISTS ProductBatch (
+    batch_id VARCHAR(20) PRIMARY KEY,
+    product_id VARCHAR(20) REFERENCES Product(product_id),
+    po_id VARCHAR(20) REFERENCES PurchaseOrder(po_id),
+    received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    quantity_in INT NOT NULL,
+    quantity_remaining INT NOT NULL,
+    unit_cost DECIMAL(10,2) NOT NULL,
+    expiry_date DATE
+);
+
 CREATE TABLE IF NOT EXISTS StockTransaction (
     transaction_id VARCHAR(20) PRIMARY KEY,
     transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -109,5 +141,7 @@ CREATE TABLE IF NOT EXISTS StockTransaction (
     product_id VARCHAR(20) REFERENCES Product(product_id) NOT NULL,
     quantity INT NOT NULL CHECK (quantity > 0),
     staff_id VARCHAR(20) REFERENCES Staff(staff_id) NOT NULL,
-    description TEXT
+    description TEXT,
+    batch_id VARCHAR(20) REFERENCES ProductBatch(batch_id),
+    reference_id VARCHAR(20)
 );

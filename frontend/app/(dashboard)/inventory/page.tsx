@@ -23,6 +23,7 @@ export default function InventoryPage() {
   const [isUpdateSubmitting, setIsUpdateSubmitting] = useState(false);
   const [editFormResetKey, setEditFormResetKey] = useState(0);
   const [isEditImageError, setEditImageError] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
   useEffect(() => {
     setDetailImageError(false);
@@ -95,6 +96,34 @@ export default function InventoryPage() {
     setEditFormResetKey((prev) => prev + 1);
   };
 
+  const handleDeleteProduct = async (product: Product) => {
+    if (!token) return;
+    const confirmed = window.confirm(`ต้องการปิดใช้งานสินค้า ${product.productName} หรือไม่?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setDeletingProductId(product.productId);
+
+    try {
+      await apiFetch(`/products/${product.productId}`, {
+        method: 'DELETE',
+        token
+      });
+      await mutate();
+      setSuccessMessage('ปิดการใช้งานสินค้าเรียบร้อย');
+      if (isDetailModalOpen && selectedProduct?.productId === product.productId) {
+        handleCloseDetails();
+      }
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'ไม่สามารถปิดการใช้งานสินค้าได้');
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
+
   const handleUpdateProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token || !productToEdit) return;
@@ -102,6 +131,16 @@ export default function InventoryPage() {
     const formData = new FormData(event.currentTarget);
     const productName = String(formData.get('productName') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
+    const sellPriceRaw = formData.get('sellPrice');
+    let sellPrice: number | undefined;
+    if (sellPriceRaw !== null && sellPriceRaw !== '') {
+      const parsed = Number(sellPriceRaw);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        setError('ราคาขายต้องเป็นตัวเลขที่ไม่ติดลบ');
+        return;
+      }
+      sellPrice = parsed;
+    }
     const imageFile = formData.get('imageFile');
 
     if (!productName) {
@@ -126,11 +165,15 @@ export default function InventoryPage() {
       }
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       productName,
       description: description || null,
       imageUrl
     };
+
+    if (sellPrice !== undefined) {
+      payload.sellPrice = sellPrice;
+    }
 
     try {
       const updatedProduct = await apiFetch<Product>(`/products/${productToEdit.productId}`, {
@@ -161,19 +204,6 @@ export default function InventoryPage() {
     const productName = String(formData.get('productName') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
     const unit = String(formData.get('unit') ?? '').trim();
-    const quantityRaw = formData.get('quantity');
-    const quantity = quantityRaw === null || quantityRaw === '' ? 0 : Number(quantityRaw);
-    if (Number.isNaN(quantity) || quantity < 0) {
-      setError('จำนวนสินค้าไม่ถูกต้อง');
-      return;
-    }
-
-    const priceRaw = formData.get('pricePerUnit');
-    const pricePerUnit = priceRaw === null || priceRaw === '' ? undefined : Number(priceRaw);
-    if (pricePerUnit !== undefined && Number.isNaN(pricePerUnit)) {
-      setError('ราคา/หน่วยไม่ถูกต้อง');
-      return;
-    }
 
     if (!productName) {
       setError('กรุณากรอกชื่อสินค้า');
@@ -204,9 +234,10 @@ export default function InventoryPage() {
       productName,
       description: description || undefined,
       unit: unit || undefined,
-      pricePerUnit,
       supplierId: selectedSupplierId,
-      quantity,
+      costPrice: 0,
+      sellPrice: 0,
+      quantity: 0,
       imageUrl: uploadedImageUrl
     };
 
@@ -281,7 +312,7 @@ export default function InventoryPage() {
                 <th className="px-4 py-3">คงเหลือ</th>
                 <th className="px-4 py-3">หน่วย</th>
                 <th className="px-4 py-3">Supplier</th>
-                <th className="px-4 py-3">ราคา/หน่วย</th>
+                <th className="px-4 py-3">ราคาขายมาตรฐาน</th>
                 <th className="px-4 py-3 text-right">จัดการ</th>
               </tr>
             </thead>
@@ -311,8 +342,8 @@ export default function InventoryPage() {
                   <td className="px-4 py-3 text-sm text-slate-500">{product.unit || '-'}</td>
                   <td className="px-4 py-3 text-sm text-slate-500">{product.supplierId || '-'}</td>
                   <td className="px-4 py-3 text-sm text-slate-500">
-                    {product.pricePerUnit !== undefined && product.pricePerUnit !== null
-                      ? Number(product.pricePerUnit).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                    {product.sellPrice !== undefined && product.sellPrice !== null
+                      ? Number(product.sellPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })
                       : '-'}
                   </td>
                   <td className="px-4 py-3 text-right text-sm">
@@ -325,13 +356,23 @@ export default function InventoryPage() {
                         ดูรายละเอียด
                       </button>
                       {canManage && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(product)}
-                          className="rounded-lg border border-primary-200 px-3 py-1 font-semibold text-primary-600 transition hover:bg-primary-50"
-                        >
-                          แก้ไข
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(product)}
+                            className="rounded-lg border border-primary-200 px-3 py-1 font-semibold text-primary-600 transition hover:bg-primary-50"
+                          >
+                            แก้ไข
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduct(product)}
+                            disabled={deletingProductId === product.productId}
+                            className="rounded-lg border border-red-200 px-3 py-1 font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingProductId === product.productId ? 'กำลังปิดใช้งาน...' : 'ปิดใช้งาน'}
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -370,21 +411,16 @@ export default function InventoryPage() {
                       <input name="productName" required placeholder="เช่น สายไฟ 2x2.5" />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs font-medium text-slate-500">จำนวนเริ่มต้น</label>
-                      <input name="quantity" type="number" min="0" defaultValue={0} />
-                    </div>
-                    <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">หน่วย</label>
                       <input name="unit" placeholder="ม้วน / ชิ้น / กล่อง" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-slate-500">ราคา/หน่วย</label>
-                      <input name="pricePerUnit" type="number" min="0" step="0.01" />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <label className="block text-xs font-medium text-slate-500">คำอธิบาย</label>
                       <textarea name="description" rows={3} placeholder="ระบุรายละเอียดสินค้าเพิ่มเติม" />
                     </div>
+                    <p className="md:col-span-2 text-xs text-slate-400">
+                      ระบบจะตั้งจำนวนคงเหลือและราคาทุนเริ่มต้นเป็น 0 คุณสามารถปรับปรุงได้ผ่านการรับสินค้าเข้าคลัง
+                    </p>
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">Supplier</label>
                       <SearchableSelect
@@ -460,6 +496,21 @@ export default function InventoryPage() {
                   <div className="space-y-2">
                     <label className="block text-xs font-medium text-slate-500">ชื่อสินค้า</label>
                     <input name="productName" required defaultValue={productToEdit.productName} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-500">ราคาขายมาตรฐาน (บาท)</label>
+                    <input
+                      name="sellPrice"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={
+                        productToEdit.sellPrice !== undefined && productToEdit.sellPrice !== null
+                          ? Number(productToEdit.sellPrice)
+                          : ''
+                      }
+                    />
+                    <p className="text-xs text-slate-400">ปล่อยว่างหากต้องการคงค่าราคาเดิม</p>
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-medium text-slate-500">คำอธิบาย</label>
@@ -555,10 +606,18 @@ export default function InventoryPage() {
                       <p className="text-sm text-slate-700">{selectedProduct.unit || '-'}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase text-slate-400">ราคา/หน่วย</p>
+                      <p className="text-xs font-semibold uppercase text-slate-400">ราคาทุนเฉลี่ย</p>
                       <p className="text-sm text-slate-700">
-                        {selectedProduct.pricePerUnit !== undefined && selectedProduct.pricePerUnit !== null
-                          ? Number(selectedProduct.pricePerUnit).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                        {selectedProduct.costPrice !== undefined && selectedProduct.costPrice !== null
+                          ? Number(selectedProduct.costPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                          : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-slate-400">ราคาขายมาตรฐาน</p>
+                      <p className="text-sm text-slate-700">
+                        {selectedProduct.sellPrice !== undefined && selectedProduct.sellPrice !== null
+                          ? Number(selectedProduct.sellPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })
                           : '-'}
                       </p>
                     </div>

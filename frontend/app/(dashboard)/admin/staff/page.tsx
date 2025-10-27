@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../../../components/AuthContext';
 import { AddStaffForm } from '../../../../components/staff/AddStaffForm';
+import { apiFetch } from '../../../../lib/api';
 import { useAuthedSWR } from '../../../../lib/swr';
 import type { Staff } from '../../../../lib/types';
 
@@ -11,6 +12,29 @@ export default function StaffAdminPage() {
   const { data: staff, mutate } = useAuthedSWR<Staff[]>(role === 'ADMIN' ? '/staff' : null, token);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [updatingStaffId, setUpdatingStaffId] = useState<string | null>(null);
+
+  const handleToggleActive = async (member: Staff) => {
+    if (!token) return;
+    setError(null);
+    setSuccessMessage(null);
+    setUpdatingStaffId(member.staffId);
+    try {
+      await apiFetch(`/staff/${member.staffId}/active`, {
+        method: 'PATCH',
+        body: JSON.stringify({ active: !member.active }),
+        token
+      });
+      await mutate();
+      setSuccessMessage(
+        member.active ? 'ปิดการใช้งานพนักงานเรียบร้อย' : 'เปิดการใช้งานพนักงานเรียบร้อย'
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถอัปเดตสถานะพนักงานได้');
+    } finally {
+      setUpdatingStaffId(null);
+    }
+  };
 
   if (role !== 'ADMIN') {
     return <p className="text-sm text-slate-500">ต้องเป็นผู้ดูแลระบบเท่านั้น</p>;
@@ -38,6 +62,7 @@ export default function StaffAdminPage() {
                 <th className="px-4 py-3">อีเมล</th>
                 <th className="px-4 py-3">บทบาท</th>
                 <th className="px-4 py-3">สถานะ</th>
+                <th className="px-4 py-3">การจัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -48,6 +73,20 @@ export default function StaffAdminPage() {
                   <td className="px-4 py-3 text-sm text-slate-500">{member.email}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-slate-700">{member.role}</td>
                   <td className="px-4 py-3 text-sm text-slate-500">{member.active ? 'Active' : 'Inactive'}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(member)}
+                      disabled={updatingStaffId === member.staffId}
+                      className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {updatingStaffId === member.staffId
+                        ? 'กำลังอัปเดต...'
+                        : member.active
+                        ? 'ปิดใช้งาน'
+                        : 'เปิดใช้งาน'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

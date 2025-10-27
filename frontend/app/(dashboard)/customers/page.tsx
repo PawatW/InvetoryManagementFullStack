@@ -26,6 +26,7 @@ export default function CustomersPage() {
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [editFormResetKey, setEditFormResetKey] = useState(0);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [deactivatingCustomerId, setDeactivatingCustomerId] = useState<string | null>(null);
 
   const canCreate = role === 'SALES';
 
@@ -124,6 +125,38 @@ export default function CustomersPage() {
     setEditingCustomerId(null);
     setEditFormResetKey((prev) => prev + 1);
     setIsUpdating(false);
+  };
+
+  const handleDeactivateCustomer = async (customer: Customer) => {
+    if (!token) return;
+    const confirmed = window.confirm(`ต้องการปิดการใช้งานลูกค้า ${customer.customerName} หรือไม่?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setDeactivatingCustomerId(customer.customerId);
+
+    try {
+      await apiFetch(`/customers/${customer.customerId}`, {
+        method: 'DELETE',
+        token
+      });
+      if (inspectedCustomerId === customer.customerId) {
+        setInspectedCustomerId(null);
+        setDetailModalOpen(false);
+      }
+      if (editingCustomerId === customer.customerId) {
+        setEditModalOpen(false);
+      }
+      await mutate();
+      setSuccessMessage('ปิดการใช้งานลูกค้าเรียบร้อย');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถปิดการใช้งานลูกค้าได้');
+    } finally {
+      setDeactivatingCustomerId(null);
+    }
   };
 
   const handleUpdateCustomer = async (event: FormEvent<HTMLFormElement>) => {
@@ -257,13 +290,23 @@ export default function CustomersPage() {
                             {isSelected ? 'ซ่อน' : 'ดูรายละเอียด'}
                           </button>
                           {canCreate && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditCustomer(customer.customerId)}
-                              className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                            >
-                              แก้ไข
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditCustomer(customer.customerId)}
+                                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                              >
+                                แก้ไข
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeactivateCustomer(customer)}
+                                disabled={deactivatingCustomerId === customer.customerId}
+                                className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {deactivatingCustomerId === customer.customerId ? 'กำลังปิดใช้งาน...' : 'ปิดใช้งาน'}
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>

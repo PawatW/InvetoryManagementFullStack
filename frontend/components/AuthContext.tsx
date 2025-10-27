@@ -6,7 +6,14 @@ import { API_BASE_URL } from '../lib/config';
 import { decodeJwtPayload, isTokenExpired } from '../lib/auth';
 import { ApiError } from '../lib/api';
 
-type Role = 'ADMIN' | 'SALES' | 'TECHNICIAN' | 'FOREMAN' | 'WAREHOUSE' | string;
+type Role =
+  | 'ADMIN'
+  | 'SALES'
+  | 'TECHNICIAN'
+  | 'FOREMAN'
+  | 'WAREHOUSE'
+  | 'PROCUREMENT'
+  | string;
 
 function normalizeRole(rawRole: unknown): Role | null {
   if (!rawRole) {

@@ -32,6 +32,15 @@ public class UserRepository {
         return jdbcTemplate.query(sql, this::mapRow);
     }
 
+    public Staff findById(String staffId) {
+        List<Staff> list = jdbcTemplate.query(
+                "SELECT staff_id, staff_name, role, email, password, phone, active FROM Staff WHERE staff_id = ?",
+                this::mapRow,
+                staffId
+        );
+        return list.isEmpty() ? null : list.get(0);
+    }
+
     public Staff findByEmail(String email) {
         List<Staff> list = jdbcTemplate.query(
                 "SELECT staff_id, staff_name, role, email, password, phone, active FROM Staff WHERE email = ?",
@@ -48,5 +57,9 @@ public class UserRepository {
                 staff.getStaffName(), staff.getRole(), staff.getPhone(), staff.getEmail(),
                 staff.getPassword(), staff.isActive()
         );
+    }
+
+    public void updateActive(String staffId, boolean active) {
+        jdbcTemplate.update("UPDATE Staff SET active = ? WHERE staff_id = ?", active, staffId);
     }
 }
