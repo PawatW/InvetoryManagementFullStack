@@ -75,16 +75,6 @@ public class ProductController {
         String imageUrl = imageService.uploadProductImage(file);
         return ResponseEntity.ok(Map.of("url", imageUrl));
     }
-    // เพิ่มใน ProductController.java
-    @GetMapping("/{id}/batches")
-    public List<ProductBatch> getProductBatches(@PathVariable String id) {
-        return productService.getProductBatches(id);
-    }
-
-    @GetMapping("/{productId}/batches/{batchId}")
-    public ProductBatch getProductBatch(@PathVariable String productId, @PathVariable String batchId) {
-        return productService.getProductBatch(productId, batchId);
-    }
 
 //    @PostMapping("/products/{id}/image")
 //    public ResponseEntity<?> uploadProductImage(@PathVariable int id,
