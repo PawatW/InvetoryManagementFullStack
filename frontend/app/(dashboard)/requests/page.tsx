@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
 import { apiFetch } from '../../../lib/api';
@@ -105,6 +105,7 @@ export default function RequestsPage() {
   const [requestBatchDetails, setRequestBatchDetails] = useState<
     Record<string, { data: ProductBatch | null; loading: boolean; error: string | null; fetched: boolean }>
   >({});
+  const previousWarehouseRequestId = useRef<string | null>(null);
 
   const { data: confirmedOrders } = useAuthedSWR<Order[]>(role === 'TECHNICIAN' ? '/orders/confirmed' : null, token);
   const { data: customers } = useAuthedSWR<Customer[]>('/customers', token);
@@ -396,6 +397,31 @@ export default function RequestsPage() {
       return stockAvailable > 0;
     });
   }, [warehouseActiveItems, productById]);
+
+  useEffect(() => {
+    if (!isWarehouseModalOpen) {
+      previousWarehouseRequestId.current = null;
+      return;
+    }
+
+    if (warehouseModalRequestId !== previousWarehouseRequestId.current) {
+      previousWarehouseRequestId.current = warehouseModalRequestId ?? null;
+
+      setWarehouseBatchState((prev) => {
+        if (Object.keys(prev).length === 0) {
+          return prev;
+        }
+        return {};
+      });
+
+      setFulfillQuantities((prev) => {
+        if (Object.keys(prev).length === 0) {
+          return prev;
+        }
+        return {};
+      });
+    }
+  }, [isWarehouseModalOpen, warehouseModalRequestId]);
 
   useEffect(() => {
     if (!token || !isWarehouseModalOpen) {
