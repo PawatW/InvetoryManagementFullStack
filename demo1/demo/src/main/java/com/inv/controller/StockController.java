@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/stock")
@@ -66,12 +65,6 @@ public class StockController {
         public int getFulfillQty() { return fulfillQty; }
         public void setFulfillQty(int fulfillQty) { this.fulfillQty = fulfillQty; }
     }
-    // เพิ่มใน StockController.java
-    @GetMapping("/requests/{requestId}/transactions")
-    public List<StockTransaction> getTransactionsForRequest(@PathVariable String requestId) {
-        return stockService.getTransactionsForRequest(requestId);
-    }
-
     // Inner class สำหรับรับ JSON request
     public static class StockInRequest {
         private String productId;   // แก้เป็น String
