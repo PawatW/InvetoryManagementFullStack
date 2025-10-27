@@ -60,6 +60,11 @@ public class ProductController {
         return productService.getProductBatches(id);
     }
 
+    @GetMapping("/{id}/available-batches")
+    public List<ProductBatch> getAvailableProductBatches(@PathVariable String id) {
+        return productService.getAvailableProductBatches(id);
+    }
+
     @GetMapping("/{productId}/batches/{batchId}")
     public ProductBatch getProductBatch(@PathVariable String productId, @PathVariable String batchId) {
         return productService.getProductBatch(productId, batchId);

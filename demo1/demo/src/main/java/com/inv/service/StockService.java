@@ -157,4 +157,8 @@ public class StockService {
         return stockTransactionRepository.findAll();
     }
 
+    public List<StockTransaction> getTransactionsForRequest(String requestId) {
+        return stockTransactionRepository.findByReferenceId(requestId);
+    }
+
 }

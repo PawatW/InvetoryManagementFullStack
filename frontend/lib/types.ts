@@ -96,12 +96,12 @@ export interface StockTransaction {
 export interface ProductBatch {
   batchId: string;
   productId: string;
-  poId?: string;
-  receivedDate: string;
+  poId?: string | null;
+  receivedDate?: string | null;
   quantityIn: number;
   quantityRemaining: number;
-  unitCost?: number;
-  expiryDate?: string;
+  unitCost?: number | null;
+  expiryDate?: string | null;
 }
 
 export interface PurchaseItem {

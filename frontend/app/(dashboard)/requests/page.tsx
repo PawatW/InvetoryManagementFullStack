@@ -5,7 +5,16 @@ import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
 import { apiFetch } from '../../../lib/api';
 import { useAuthedSWR } from '../../../lib/swr';
-import type { Customer, Order, OrderItem, Product, Request, RequestItem } from '../../../lib/types';
+import type {
+  Customer,
+  Order,
+  OrderItem,
+  Product,
+  ProductBatch,
+  Request,
+  RequestItem,
+  StockTransaction
+} from '../../../lib/types';
 import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
 
 interface DraftRequestItem {
@@ -60,6 +69,15 @@ export default function RequestsPage() {
   const [inspectedReadyRequestId, setInspectedReadyRequestId] = useState<string | null>(null);
   const [isReadyRequestModalOpen, setReadyRequestModalOpen] = useState(false);
   const [isLoadingExistingTotals, setLoadingExistingTotals] = useState(false);
+  const [warehouseBatchState, setWarehouseBatchState] = useState<
+    Record<string, { batches: ProductBatch[]; isLoading: boolean; error: string | null; fetched: boolean }>
+  >({});
+  const [requestTransactions, setRequestTransactions] = useState<StockTransaction[]>([]);
+  const [isRequestTransactionsLoading, setRequestTransactionsLoading] = useState(false);
+  const [requestTransactionsError, setRequestTransactionsError] = useState<string | null>(null);
+  const [requestBatchDetails, setRequestBatchDetails] = useState<
+    Record<string, { data: ProductBatch | null; loading: boolean; error: string | null; fetched: boolean }>
+  >({});
 
   const { data: confirmedOrders } = useAuthedSWR<Order[]>(role === 'TECHNICIAN' ? '/orders/confirmed' : null, token);
   const { data: customers } = useAuthedSWR<Customer[]>('/customers', token);
@@ -351,6 +369,175 @@ export default function RequestsPage() {
       return stockAvailable > 0;
     });
   }, [warehouseActiveItems, productById]);
+
+  useEffect(() => {
+    if (!token || !isWarehouseModalOpen) {
+      return;
+    }
+    const productIds = Array.from(new Set(warehouseActiveItems.map((item) => item.productId)));
+    if (productIds.length === 0) {
+      return;
+    }
+
+    const targets = productIds.filter((productId) => {
+      const entry = warehouseBatchState[productId];
+      return !entry || (!entry.isLoading && !entry.fetched);
+    });
+
+    if (targets.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    targets.forEach((productId) => {
+      setWarehouseBatchState((prev) => ({
+        ...prev,
+        [productId]: {
+          batches: prev[productId]?.batches ?? [],
+          isLoading: true,
+          error: null,
+          fetched: false
+        }
+      }));
+
+      void (async () => {
+        try {
+          const batches = await apiFetch<ProductBatch[]>(`/products/${productId}/available-batches`, { token });
+          if (!cancelled) {
+            setWarehouseBatchState((prev) => ({
+              ...prev,
+              [productId]: {
+                batches: batches ?? [],
+                isLoading: false,
+                error: null,
+                fetched: true
+              }
+            }));
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setWarehouseBatchState((prev) => ({
+              ...prev,
+              [productId]: {
+                batches: [],
+                isLoading: false,
+                error: err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลล็อตสินค้าได้',
+                fetched: true
+              }
+            }));
+          }
+        }
+      })();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isWarehouseModalOpen, warehouseActiveItems, warehouseBatchState]);
+
+  useEffect(() => {
+    if (!token || !isWarehouseModalOpen || !warehouseModalRequestId) {
+      if (!isWarehouseModalOpen) {
+        setRequestTransactions([]);
+        setRequestTransactionsError(null);
+        setRequestTransactionsLoading(false);
+        setRequestBatchDetails({});
+      }
+      return;
+    }
+
+    let cancelled = false;
+    setRequestTransactionsLoading(true);
+    setRequestTransactionsError(null);
+    setRequestBatchDetails({});
+
+    void apiFetch<StockTransaction[]>(`/stock/requests/${warehouseModalRequestId}/transactions`, { token })
+      .then((transactions) => {
+        if (!cancelled) {
+          setRequestTransactions(transactions ?? []);
+          setRequestTransactionsLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setRequestTransactions([]);
+          setRequestTransactionsError(
+            err instanceof Error ? err.message : 'ไม่สามารถโหลดประวัติการเบิกได้'
+          );
+          setRequestTransactionsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, warehouseModalRequestId, isWarehouseModalOpen]);
+
+  useEffect(() => {
+    if (!token || !isWarehouseModalOpen || requestTransactions.length === 0) {
+      return;
+    }
+
+    const targets = requestTransactions
+      .map((transaction) => ({ batchId: transaction.batchId, productId: transaction.productId }))
+      .filter((entry): entry is { batchId: string; productId: string } => Boolean(entry.batchId))
+      .filter((entry) => {
+        const detail = requestBatchDetails[entry.batchId];
+        return !detail || (!detail.loading && !detail.fetched);
+      });
+
+    if (targets.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    targets.forEach(({ batchId, productId }) => {
+      setRequestBatchDetails((prev) => ({
+        ...prev,
+        [batchId]: {
+          data: prev[batchId]?.data ?? null,
+          loading: true,
+          error: null,
+          fetched: prev[batchId]?.fetched ?? false
+        }
+      }));
+
+      void (async () => {
+        try {
+          const batch = await apiFetch<ProductBatch>(`/products/${productId}/batches/${batchId}`, { token });
+          if (!cancelled) {
+            setRequestBatchDetails((prev) => ({
+              ...prev,
+              [batchId]: {
+                data: batch ?? null,
+                loading: false,
+                error: null,
+                fetched: true
+              }
+            }));
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setRequestBatchDetails((prev) => ({
+              ...prev,
+              [batchId]: {
+                data: null,
+                loading: false,
+                error: err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลล็อตสินค้าได้',
+                fetched: true
+              }
+            }));
+          }
+        }
+      })();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isWarehouseModalOpen, requestTransactions, requestBatchDetails]);
 
   useEffect(() => {
     if (statusOverrides.size === 0) {
@@ -729,6 +916,17 @@ export default function RequestsPage() {
     setReadyRequestModalOpen(true);
   };
 
+  const closeWarehouseModal = useCallback(() => {
+    setWarehouseModalOpen(false);
+    setWarehouseModalRequestId(null);
+    setFulfillQuantities({});
+    setWarehouseBatchState({});
+    setRequestTransactions([]);
+    setRequestTransactionsError(null);
+    setRequestTransactionsLoading(false);
+    setRequestBatchDetails({});
+  }, []);
+
   const handleFulfillAll = async () => {
     if (!token || !warehouseActiveRequest) {
       return;
@@ -804,9 +1002,7 @@ export default function RequestsPage() {
         next.set(warehouseActiveRequest.requestId, 'Pending');
         return next;
       });
-      setFulfillQuantities({});
-      setWarehouseModalOpen(false);
-      setWarehouseModalRequestId(null);
+      closeWarehouseModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถเบิกสินค้าได้');
     } finally {
@@ -926,11 +1122,7 @@ export default function RequestsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setWarehouseModalOpen(false);
-                    setWarehouseModalRequestId(null);
-                    setFulfillQuantities({});
-                  }}
+                  onClick={closeWarehouseModal}
                   className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
                 >
                   ปิด
@@ -1003,6 +1195,9 @@ export default function RequestsPage() {
                           const productLabel = product?.productName
                             ? `${product.productName} (${product.productId})`
                             : item.productId;
+                          const batchState = warehouseBatchState[item.productId];
+                          const availableBatches = batchState?.batches ?? [];
+                          const visibleBatches = availableBatches.slice(0, 3);
 
                           return (
                             <li
@@ -1047,6 +1242,45 @@ export default function RequestsPage() {
                                   <p className="text-[11px] text-slate-400">รอเติมสต็อกเพื่อดำเนินการเบิก</p>
                                 )}
                               </div>
+                              <div className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 md:basis-full">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-slate-600">ล็อตคงเหลือ</span>
+                                  {batchState?.isLoading && (
+                                    <span className="text-[11px] text-slate-400">กำลังโหลด...</span>
+                                  )}
+                                </div>
+                                {batchState?.error ? (
+                                  <p className="mt-2 text-[11px] text-rose-600">{batchState.error}</p>
+                                ) : !batchState?.isLoading && availableBatches.length === 0 ? (
+                                  <p className="mt-2 text-[11px] text-slate-400">ไม่มีล็อตที่มีคงเหลือ</p>
+                                ) : (
+                                  <ul className="mt-2 space-y-2">
+                                    {visibleBatches.map((batch) => (
+                                      <li key={batch.batchId} className="rounded-lg bg-slate-50 px-3 py-2">
+                                        <div className="flex items-center justify-between gap-3">
+                                          <span className="font-mono text-[11px] text-slate-500">{batch.batchId}</span>
+                                          <span className="text-sm font-semibold text-slate-800">
+                                            {batch.quantityRemaining.toLocaleString('th-TH')} ชิ้น
+                                          </span>
+                                        </div>
+                                        <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-500">
+                                          <span>รับเข้า {batch.receivedDate ? format(new Date(batch.receivedDate), 'dd MMM yyyy') : '-'}</span>
+                                          <span className="text-right">
+                                            ต้นทุน {batch.unitCost !== undefined && batch.unitCost !== null
+                                              ? Number(batch.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                              : '-'}
+                                          </span>
+                                          <span>หมดอายุ {batch.expiryDate ? format(new Date(batch.expiryDate), 'dd MMM yyyy') : '-'}</span>
+                                          <span className="text-right">รับมา {batch.quantityIn.toLocaleString('th-TH')} ชิ้น</span>
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {availableBatches.length > visibleBatches.length && (
+                                  <p className="mt-2 text-[11px] text-slate-400">มีล็อตทั้งหมด {availableBatches.length.toLocaleString('th-TH')} รายการ</p>
+                                )}
+                              </div>
                             </li>
                           );
                         })}
@@ -1067,6 +1301,106 @@ export default function RequestsPage() {
                     </div>
                   )}
                 </div>
+                {warehouseModalRequestId && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-slate-800">ประวัติการเบิกล่าสุด</h4>
+                      {isRequestTransactionsLoading && (
+                        <span className="text-xs text-slate-400">กำลังโหลด...</span>
+                      )}
+                    </div>
+                    {requestTransactionsError && (
+                      <div className="rounded-xl bg-red-50 px-4 py-3 text-xs text-red-600">
+                        {requestTransactionsError}
+                      </div>
+                    )}
+                    {!isRequestTransactionsLoading && !requestTransactionsError && requestTransactions.length === 0 && (
+                      <p className="text-xs text-slate-500">ยังไม่มีประวัติการเบิกสำหรับคำขอนี้</p>
+                    )}
+                    {!isRequestTransactionsLoading && !requestTransactionsError && requestTransactions.length > 0 && (
+                      <div className="overflow-hidden rounded-2xl border border-slate-200">
+                        <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+                          <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            <tr>
+                              <th className="px-4 py-2">วันที่ทำรายการ</th>
+                              <th className="px-4 py-2">Batch</th>
+                              <th className="px-4 py-2">สินค้า</th>
+                              <th className="px-4 py-2">จำนวน</th>
+                              <th className="px-4 py-2">ผู้ทำรายการ</th>
+                              <th className="px-4 py-2">รายละเอียด</th>
+                              <th className="px-4 py-2">ข้อมูลล็อต</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white text-[13px]">
+                            {requestTransactions.map((transaction) => {
+                              const product = productById.get(transaction.productId);
+                              const productLabel = product?.productName
+                                ? `${product.productName} (${product.productId})`
+                                : transaction.productId;
+                              const batchInfo = transaction.batchId
+                                ? requestBatchDetails[transaction.batchId]
+                                : undefined;
+                              const batchDetail = batchInfo?.data ?? null;
+                              const batchLoading = transaction.batchId ? batchInfo?.loading : false;
+                              const batchError = transaction.batchId ? batchInfo?.error : null;
+
+                              return (
+                                <tr key={transaction.transactionId} className="hover:bg-slate-50/60">
+                                  <td className="px-4 py-3 text-slate-600">
+                                    {formatDateTime(transaction.transactionDate, 'dd MMM yyyy HH:mm')}
+                                  </td>
+                                  <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
+                                    {transaction.batchId ?? '-'}
+                                  </td>
+                                  <td className="px-4 py-3 text-slate-700">{productLabel}</td>
+                                  <td className="px-4 py-3 font-semibold text-slate-800">
+                                    {transaction.quantity.toLocaleString('th-TH')}
+                                  </td>
+                                  <td className="px-4 py-3 text-slate-600">{transaction.staffId}</td>
+                                  <td className="px-4 py-3 text-slate-600">
+                                    {transaction.description || '-'}
+                                  </td>
+                                  <td className="px-4 py-3 text-slate-600">
+                                    {!transaction.batchId && <span className="text-[11px] text-slate-400">ไม่มีข้อมูลล็อต</span>}
+                                    {transaction.batchId && batchLoading && (
+                                      <span className="text-[11px] text-slate-400">กำลังโหลดข้อมูลล็อต...</span>
+                                    )}
+                                    {transaction.batchId && batchError && (
+                                      <span className="text-[11px] text-rose-600">{batchError}</span>
+                                    )}
+                                    {transaction.batchId && !batchLoading && !batchError && batchDetail && (
+                                      <div className="space-y-1 text-[11px] text-slate-500">
+                                        <p>
+                                          รับเข้า {batchDetail.receivedDate ? format(new Date(batchDetail.receivedDate), 'dd MMM yyyy HH:mm') : '-'}
+                                        </p>
+                                        <p>
+                                          หมดอายุ {batchDetail.expiryDate ? format(new Date(batchDetail.expiryDate), 'dd MMM yyyy') : '-'}
+                                        </p>
+                                        <p>
+                                          ต้นทุน/หน่วย{' '}
+                                          {batchDetail.unitCost !== undefined && batchDetail.unitCost !== null
+                                            ? Number(batchDetail.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                            : '-'}
+                                        </p>
+                                        <p>
+                                          รับมา {batchDetail.quantityIn.toLocaleString('th-TH')} ชิ้น • คงเหลือ{' '}
+                                          {batchDetail.quantityRemaining.toLocaleString('th-TH')} ชิ้น
+                                        </p>
+                                      </div>
+                                    )}
+                                    {transaction.batchId && !batchLoading && !batchError && !batchDetail && (
+                                      <span className="text-[11px] text-slate-400">ไม่พบข้อมูลล็อต</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

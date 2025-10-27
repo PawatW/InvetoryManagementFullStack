@@ -106,6 +106,14 @@ public class ProductService {
         return productBatchRepository.findByProduct(productId);
     }
 
+    public List<ProductBatch> getAvailableProductBatches(String productId) {
+        Product existing = productRepository.findById(productId);
+        if (existing == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
+        }
+        return productBatchRepository.findAvailableBatches(productId);
+    }
+
     public ProductBatch getProductBatch(String productId, String batchId) {
         Product existing = productRepository.findById(productId);
         if (existing == null) {
