@@ -1,11 +1,14 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns'; // Make sure format is imported
 import { useAuth } from '../../../components/AuthContext';
 import { useAuthedSWR } from '../../../lib/swr';
 import { apiFetch, uploadProductImage } from '../../../lib/api';
-import type { Product, Supplier } from '../../../lib/types';
+// Import ProductBatch along with other types
+import type { Product, Supplier, ProductBatch } from '../../../lib/types';
 import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
+
 export default function InventoryPage() {
   const { token, role } = useAuth();
   const [filter, setFilter] = useState('');
@@ -18,12 +21,19 @@ export default function InventoryPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
   const [isDetailImageError, setDetailImageError] = useState(false);
+  const [productBatches, setProductBatches] = useState<ProductBatch[]>([]);
+  const [isBatchesLoading, setBatchesLoading] = useState(false);
+  const [batchesError, setBatchesError] = useState<string | null>(null);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [isUpdateSubmitting, setIsUpdateSubmitting] = useState(false);
   const [editFormResetKey, setEditFormResetKey] = useState(0);
   const [isEditImageError, setEditImageError] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [priceEditProduct, setPriceEditProduct] = useState<Product | null>(null);
+  const [isPriceModalOpen, setPriceModalOpen] = useState(false);
+  const [isPriceSubmitting, setIsPriceSubmitting] = useState(false);
+
 
   useEffect(() => {
     setDetailImageError(false);
@@ -33,11 +43,22 @@ export default function InventoryPage() {
     setEditImageError(false);
   }, [productToEdit]);
 
-  const canManage = role === 'WAREHOUSE';
-  const canCreateCustomers = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
-  const canCreateOrders = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
+  // Determine permissions based on role
+  const canManage = role === 'WAREHOUSE' || role === 'ADMIN'; // Warehouse/Admin can create/edit/deactivate
+  const canEditSellPrice = role === 'SALES' || role === 'ADMIN'; // Sales/Admin can edit sell price
+
   const { data: suppliers } = useAuthedSWR<Supplier[]>(canManage ? '/suppliers' : null, token);
   const { data: products, mutate, isLoading } = useAuthedSWR<Product[]>('/products', token, { refreshInterval: 30000 });
+
+  const batchSummary = useMemo(() => {
+    const totalRemaining = productBatches.reduce((acc, batch) => acc + (batch.quantityRemaining ?? 0), 0);
+    const totalReceived = productBatches.reduce((acc, batch) => acc + (batch.quantityIn ?? 0), 0);
+    return {
+      totalBatches: productBatches.length,
+      totalRemaining,
+      totalReceived
+    };
+  }, [productBatches]);
 
   const supplierOptions = useMemo<SearchableOption[]>(() => {
     return (suppliers ?? []).map((supplier) => ({
@@ -68,16 +89,38 @@ export default function InventoryPage() {
     }
   }, [products, selectedProduct]);
 
+  const loadProductBatches = async (productId: string) => {
+    if (!token) {
+      return;
+    }
+    setBatchesError(null);
+    setBatchesLoading(true);
+    try {
+      const batches = await apiFetch<ProductBatch[]>(`/products/${productId}/batches`, { token });
+      setProductBatches(batches ?? []);
+    } catch (err) {
+      setProductBatches([]);
+      setBatchesError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลล็อตสินค้าได้');
+    } finally {
+      setBatchesLoading(false);
+    }
+  };
+
   const handleOpenDetails = (product: Product) => {
     setSelectedProduct(product);
     setDetailImageError(false);
     setDetailModalOpen(true);
+    setProductBatches([]);
+    void loadProductBatches(product.productId);
   };
 
   const handleCloseDetails = () => {
     setDetailModalOpen(false);
     setSelectedProduct(null);
     setDetailImageError(false);
+    setProductBatches([]);
+    setBatchesError(null);
+    setBatchesLoading(false);
   };
 
   const handleOpenEdit = (product: Product) => {
@@ -96,8 +139,21 @@ export default function InventoryPage() {
     setEditFormResetKey((prev) => prev + 1);
   };
 
+  const handleOpenPriceEdit = (product: Product) => {
+    setPriceEditProduct(product);
+    setError(null);
+    setSuccessMessage(null);
+    setPriceModalOpen(true);
+  };
+
+  const handleClosePriceEdit = () => {
+    setPriceModalOpen(false);
+    setPriceEditProduct(null);
+    setIsPriceSubmitting(false);
+  };
+
   const handleDeleteProduct = async (product: Product) => {
-    if (!token) return;
+    if (!token || !canManage) return; // Ensure permission
     const confirmed = window.confirm(`ต้องการปิดใช้งานสินค้า ${product.productName} หรือไม่?`);
     if (!confirmed) {
       return;
@@ -126,21 +182,11 @@ export default function InventoryPage() {
 
   const handleUpdateProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !productToEdit) return;
+    if (!token || !productToEdit || !canManage) return; // Ensure permission
 
     const formData = new FormData(event.currentTarget);
     const productName = String(formData.get('productName') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
-    const sellPriceRaw = formData.get('sellPrice');
-    let sellPrice: number | undefined;
-    if (sellPriceRaw !== null && sellPriceRaw !== '') {
-      const parsed = Number(sellPriceRaw);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        setError('ราคาขายต้องเป็นตัวเลขที่ไม่ติดลบ');
-        return;
-      }
-      sellPrice = parsed;
-    }
     const imageFile = formData.get('imageFile');
 
     if (!productName) {
@@ -152,12 +198,12 @@ export default function InventoryPage() {
     setSuccessMessage(null);
     setIsUpdateSubmitting(true);
 
-    let imageUrl: string | null = productToEdit.imageUrl ?? null;
+    let finalImageUrl: string | undefined = productToEdit.imageUrl ?? undefined; // Use undefined as default
 
     if (imageFile instanceof File && imageFile.size > 0) {
       try {
         const uploadResult = await uploadProductImage(imageFile, token);
-        imageUrl = uploadResult.url;
+        finalImageUrl = uploadResult.url; // Assign string or undefined
       } catch (uploadError) {
         setIsUpdateSubmitting(false);
         setError(uploadError instanceof Error ? uploadError.message : 'ไม่สามารถอัปโหลดรูปภาพได้');
@@ -165,15 +211,14 @@ export default function InventoryPage() {
       }
     }
 
-    const payload: Record<string, unknown> = {
+    // Prepare payload, ensuring types match string | undefined
+    const payload: Partial<Product> = {
       productName,
-      description: description || null,
-      imageUrl
+      description: description || undefined, // Use undefined if description is empty string
+      imageUrl: finalImageUrl,             // Use finalImageUrl which is string | undefined
+      sellPrice: productToEdit.sellPrice // Keep the existing sell price when Warehouse edits
     };
 
-    if (sellPrice !== undefined) {
-      payload.sellPrice = sellPrice;
-    }
 
     try {
       const updatedProduct = await apiFetch<Product>(`/products/${productToEdit.productId}`, {
@@ -194,9 +239,54 @@ export default function InventoryPage() {
     }
   };
 
+   const handleUpdateSellPrice = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token || !priceEditProduct || !canEditSellPrice) return; // Ensure permission
+
+    const formData = new FormData(event.currentTarget);
+    const sellPriceRaw = formData.get('sellPrice');
+    const parsed = sellPriceRaw === null || sellPriceRaw === '' ? Number.NaN : Number(sellPriceRaw);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setError('ราคาขายต้องเป็นตัวเลขที่ไม่ติดลบ');
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setIsPriceSubmitting(true);
+
+    try {
+      const payload: Partial<Product> = {
+          productName: priceEditProduct.productName,
+          sellPrice: parsed
+          // Assuming the backend endpoint for sales/admin requires productName and sellPrice
+          // If it needs *all* fields, copy logic from handleUpdateProduct but modify sellPrice
+          // description: priceEditProduct.description ?? undefined, // Example if all fields needed
+          // imageUrl: priceEditProduct.imageUrl ?? undefined,     // Example if all fields needed
+      };
+
+      const updatedProduct = await apiFetch<Product>(`/products/${priceEditProduct.productId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+        token
+      });
+
+      setSuccessMessage('อัปเดตราคาขายมาตรฐานเรียบร้อย');
+      handleClosePriceEdit();
+      setSelectedProduct((prev) => (prev && prev.productId === updatedProduct.productId ? updatedProduct : prev));
+      mutate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถอัปเดตราคาขายได้');
+    } finally {
+      setIsPriceSubmitting(false);
+    }
+  };
+
+
   const handleCreateProduct = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token) return;
+    if (!token || !canManage) return; // Ensure permission
     const form = event.currentTarget;
     setError(null);
     setSuccessMessage(null);
@@ -263,7 +353,9 @@ export default function InventoryPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Inventory</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">
+            {role === 'SALES' ? 'Products' : 'Inventory'} {/* Dynamic Title */}
+        </h1>
       </header>
 
       {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
@@ -282,7 +374,7 @@ export default function InventoryPage() {
           />
           <div className="flex flex-col items-start gap-2 md:items-end">
             <div className="flex w-full flex-wrap gap-2 md:justify-end">
-              {canManage && (
+              {canManage && ( // Only show create button for Warehouse/Admin
                 <button
                   type="button"
                   onClick={() => {
@@ -297,7 +389,6 @@ export default function InventoryPage() {
                   เพิ่มสินค้าใหม่
                 </button>
               )}
-
             </div>
             <p className="text-xs text-slate-400">แสดง {filteredProducts.length} จาก {products?.length ?? 0} รายการ</p>
           </div>
@@ -346,7 +437,7 @@ export default function InventoryPage() {
                       ? Number(product.sellPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })
                       : '-'}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm">
+                   <td className="px-4 py-3 text-right text-sm">
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
@@ -355,7 +446,16 @@ export default function InventoryPage() {
                       >
                         ดูรายละเอียด
                       </button>
-                      {canManage && (
+                      {canEditSellPrice && ( // Show price edit button for Sales/Admin
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPriceEdit(product)}
+                          className="rounded-lg border border-emerald-200 px-3 py-1 font-semibold text-emerald-600 transition hover:bg-emerald-50"
+                        >
+                          ปรับราคาขาย
+                        </button>
+                      )}
+                      {canManage && ( // Show edit/deactivate buttons for Warehouse/Admin
                         <>
                           <button
                             type="button"
@@ -383,7 +483,8 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {canManage && isCreateModalOpen && (
+       {/* Create Modal - Only shown if canManage */}
+       {canManage && isCreateModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl">
@@ -405,7 +506,8 @@ export default function InventoryPage() {
                   </button>
                 </div>
                 <form key={formResetKey} onSubmit={handleCreateProduct} className="mt-6 space-y-6">
-                  <div className="grid gap-4 md:grid-cols-2">
+                  {/* Form fields for creating product */}
+                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">ชื่อสินค้า</label>
                       <input name="productName" required placeholder="เช่น สายไฟ 2x2.5" />
@@ -424,19 +526,16 @@ export default function InventoryPage() {
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">Supplier</label>
                       <SearchableSelect
-                        key={`supplier-${formResetKey}`} // ใช้ formKey เพื่อ reset ค่าตอนเปิด modal ใหม่
-                        name="supplierId" // อาจไม่จำเป็นถ้าใช้ State แต่ใส่ไว้เผื่อ
+                        key={`supplier-${formResetKey}`}
+                        name="supplierId"
                         value={selectedSupplierId}
-                        onChange={setSelectedSupplierId} // อัปเดต State โดยตรง
-                        // เพิ่ม option เริ่มต้น และรวมกับ supplierOptions
+                        onChange={setSelectedSupplierId}
                         options={[{ value: '', label: 'เลือก Supplier' }, ...supplierOptions]}
                         placeholder="เลือก Supplier"
                         searchPlaceholder="ค้นหา Supplier..."
                         emptyMessage="ไม่พบ Supplier"
-                        // ทำให้ disabled ถ้าไม่มีตัวเลือก (ไม่นับ option เริ่มต้น)
                         disabled={supplierOptions.length === 0}
                       />
-                      {/* (Optional) แสดงข้อความถ้าไม่มี supplier */}
                       {supplierOptions.length === 0 && (
                         <p className="text-xs text-slate-500">ยังไม่มีข้อมูล Supplier โปรดเพิ่มในเมนู Suppliers</p>
                       )}
@@ -474,8 +573,9 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {canManage && productToEdit && isEditModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
+      {/* Edit Modal - Only shown if canManage */}
+       {canManage && productToEdit && isEditModalOpen && (
+         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl">
               <div className="max-h-[85vh] overflow-y-auto p-6">
@@ -493,26 +593,11 @@ export default function InventoryPage() {
                   </button>
                 </div>
                 <form key={editFormResetKey} onSubmit={handleUpdateProduct} className="mt-6 space-y-6">
-                  <div className="space-y-2">
+                   <div className="space-y-2">
                     <label className="block text-xs font-medium text-slate-500">ชื่อสินค้า</label>
                     <input name="productName" required defaultValue={productToEdit.productName} />
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-500">ราคาขายมาตรฐาน (บาท)</label>
-                    <input
-                      name="sellPrice"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      defaultValue={
-                        productToEdit.sellPrice !== undefined && productToEdit.sellPrice !== null
-                          ? Number(productToEdit.sellPrice)
-                          : ''
-                      }
-                    />
-                    <p className="text-xs text-slate-400">ปล่อยว่างหากต้องการคงค่าราคาเดิม</p>
-                  </div>
-                  <div className="space-y-2">
+                   <div className="space-y-2">
                     <label className="block text-xs font-medium text-slate-500">คำอธิบาย</label>
                     <textarea name="description" rows={3} defaultValue={productToEdit.description ?? ''} placeholder="ระบุคำอธิบายสินค้า" />
                   </div>
@@ -521,8 +606,8 @@ export default function InventoryPage() {
                     <input name="imageFile" type="file" accept="image/*" className="block w-full" />
                     <p className="text-xs text-slate-400">หากไม่เลือกรูปใหม่ ระบบจะใช้รูปเดิมโดยอัตโนมัติ</p>
                   </div>
-                  {productToEdit.imageUrl && !isEditImageError && (
-                    <div className="space-y-2">
+                   {productToEdit.imageUrl && !isEditImageError && (
+                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">รูปปัจจุบัน</label>
                       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                         <img
@@ -533,7 +618,7 @@ export default function InventoryPage() {
                         />
                       </div>
                     </div>
-                  )}
+                   )}
                   <div className="flex items-center justify-end gap-3">
                     <button
                       type="button"
@@ -555,9 +640,69 @@ export default function InventoryPage() {
             </div>
           </div>
         </div>
+       )}
+
+      {/* Price Edit Modal - Only shown if canEditSellPrice */}
+      {canEditSellPrice && priceEditProduct && isPriceModalOpen && (
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-900/60">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl">
+              <div className="max-h-[85vh] overflow-y-auto p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">ปรับราคาขายมาตรฐาน</h2>
+                    <p className="text-sm text-slate-500">{priceEditProduct.productName}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClosePriceEdit}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                  >
+                    ปิด
+                  </button>
+                </div>
+                <form onSubmit={handleUpdateSellPrice} className="mt-6 space-y-6">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-500">ราคาขายมาตรฐานใหม่ (บาท)</label>
+                    <input
+                      name="sellPrice"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={
+                        priceEditProduct.sellPrice !== undefined && priceEditProduct.sellPrice !== null
+                          ? Number(priceEditProduct.sellPrice)
+                          : ''
+                      }
+                      required
+                    />
+                     <p className="text-xs text-slate-400">กรอกเฉพาะค่าที่ต้องการบันทึกใหม่</p>
+                  </div>
+                  <div className="flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={handleClosePriceEdit}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isPriceSubmitting}
+                      className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isPriceSubmitting ? 'กำลังบันทึก...' : 'บันทึกการปรับราคา'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
-      {selectedProduct && isDetailModalOpen && (
+      {/* Detail Modal */}
+       {selectedProduct && isDetailModalOpen && (
         <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-900/60">
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl">
@@ -575,7 +720,6 @@ export default function InventoryPage() {
                     ปิด
                   </button>
                 </div>
-
                 <div className="mt-6 space-y-6">
                   {selectedProduct.imageUrl && !isDetailImageError && (
                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
@@ -587,8 +731,7 @@ export default function InventoryPage() {
                       />
                     </div>
                   )}
-
-                  <div className="grid gap-4 md:grid-cols-2">
+                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <p className="text-xs font-semibold uppercase text-slate-400">รหัสสินค้า</p>
                       <p className="font-mono text-sm text-slate-700">{selectedProduct.productId}</p>
@@ -627,6 +770,66 @@ export default function InventoryPage() {
                         {selectedProduct.description || '-'}
                       </p>
                     </div>
+                  </div>
+                   {/* Batch Details Section */}
+                  <div className="space-y-3">
+                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                         <p className="text-sm font-semibold text-slate-800">ข้อมูลล็อตสินค้า</p>
+                         <div className="flex flex-col gap-1 text-xs text-slate-400 sm:text-right">
+                           {isBatchesLoading && <span>กำลังโหลด...</span>}
+                           {!isBatchesLoading && productBatches.length > 0 && (
+                             <span>
+                               ทั้งหมด {batchSummary.totalBatches.toLocaleString('th-TH')} ล็อต • รับเข้ารวม{' '}
+                               {batchSummary.totalReceived.toLocaleString('th-TH')} • คงเหลือรวม{' '}
+                               {batchSummary.totalRemaining.toLocaleString('th-TH')}
+                             </span>
+                           )}
+                         </div>
+                       </div>
+                    {batchesError && (
+                      <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{batchesError}</div>
+                    )}
+                    {!isBatchesLoading && !batchesError && productBatches.length === 0 && (
+                      <p className="text-sm text-slate-500">ยังไม่มีข้อมูลล็อตสินค้า</p>
+                    )}
+                    {!isBatchesLoading && productBatches.length > 0 && (
+                      <div className="overflow-hidden rounded-2xl border border-slate-200">
+                        <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+                          <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            <tr>
+                              <th className="px-4 py-2">Batch ID</th>
+                              <th className="px-4 py-2">รับเข้าเมื่อ</th>
+                              <th className="px-4 py-2">จำนวนรับ</th>
+                              <th className="px-4 py-2">คงเหลือ</th>
+                              <th className="px-4 py-2">ราคาทุน/หน่วย</th>
+                              <th className="px-4 py-2">PO อ้างอิง</th>
+                              <th className="px-4 py-2">วันหมดอายุ</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white text-[13px]">
+                            {productBatches.map((batch) => (
+                              <tr key={batch.batchId} className="hover:bg-slate-50/60">
+                                <td className="px-4 py-2 font-mono text-[11px] text-slate-500">{batch.batchId}</td>
+                                <td className="px-4 py-2 text-slate-600">
+                                  {batch.receivedDate ? format(new Date(batch.receivedDate), 'dd MMM yyyy HH:mm') : '-'}
+                                </td>
+                                <td className="px-4 py-2 font-semibold text-slate-800">{batch.quantityIn}</td>
+                                <td className="px-4 py-2 text-slate-700">{batch.quantityRemaining}</td>
+                                <td className="px-4 py-2 text-slate-700">
+                                  {batch.unitCost !== undefined && batch.unitCost !== null
+                                    ? Number(batch.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                    : '-'}
+                                </td>
+                                <td className="px-4 py-2 text-slate-600">{batch.poId || '-'}</td>
+                                <td className="px-4 py-2 text-slate-600">
+                                  {batch.expiryDate ? format(new Date(batch.expiryDate), 'dd MMM yyyy') : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

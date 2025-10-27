@@ -6,13 +6,13 @@ services:
     build:
       context: ./demo1/demo # Path to backend Dockerfile context
       dockerfile: Dockerfile
-    container_name: sa-demo-backend
+    container_name: Invmanagement-backend
     ports:
       - "8080:8080" # Map host port 8080 to container port 8080
     environment:
       # Override application.properties for database connection
       # Use the 'db' service name as the host
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/demo
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/Invmanagement
       - SPRING_DATASOURCE_USERNAME=postgres # Use your actual username if different
       - SPRING_DATASOURCE_PASSWORD=pawat7452 # Use your actual password
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
@@ -31,7 +31,7 @@ services:
     build:
       context: ./frontend # Path to frontend Dockerfile context
       dockerfile: Dockerfile
-    container_name: sa-demo-frontend
+    container_name: Invmanagement-frontend
     ports:
       - "3000:3000" # Map host port 3000 to container port 3000
     environment:
@@ -44,9 +44,9 @@ services:
   # 3. Database Service (PostgreSQL)
   db:
     image: postgres:15-alpine # Use a specific PostgreSQL version
-    container_name: sa-demo-db
+    container_name: Invmanagement-db
     environment:
-      - POSTGRES_DB=demo # Database name from your properties
+      - POSTGRES_DB=Invmanagement # Database name from your properties
       - POSTGRES_USER=postgres # Username from your properties
       - POSTGRES_PASSWORD=pawat7452 # Password from your properties
     ports:

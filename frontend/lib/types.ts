@@ -110,3 +110,14 @@ export interface PurchaseOrder {
   status: string;
   items?: PurchaseItem[];
 }
+
+export interface ProductBatch {
+  batchId: string;
+  productId: string;
+  receivedDate?: string; // ISO 8601 format string (e.g., "2024-07-28T10:00:00.000+00:00")
+  expiryDate?: string; // ISO 8601 format string (date only, e.g., "2025-12-31")
+  quantityIn: number;
+  quantityRemaining: number;
+  unitCost?: number;
+  poId?: string;
+}

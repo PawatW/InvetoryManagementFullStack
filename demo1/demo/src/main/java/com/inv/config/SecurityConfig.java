@@ -83,10 +83,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/suppliers").authenticated()
 
                         // Purchase order workflow
-                        .requestMatchers(HttpMethod.GET, "/purchase-orders", "/purchase-orders/*").hasAnyRole("PROCUREMENT", "WAREHOUSE", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/purchase-orders").hasAnyRole("WAREHOUSE", "PROCUREMENT", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/purchase-orders/*/pricing").hasAnyRole("PROCUREMENT", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/purchase-orders/*/receive").hasAnyRole("WAREHOUSE", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/purchase-orders", "/purchase-orders/*").hasAnyRole("PROCUREMENT", "WAREHOUSE")
+                        .requestMatchers(HttpMethod.POST, "/purchase-orders").hasAnyRole("WAREHOUSE", "PROCUREMENT")
+                        .requestMatchers(HttpMethod.PUT, "/purchase-orders/*/pricing").hasAnyRole("PROCUREMENT")
+                        .requestMatchers(HttpMethod.POST, "/purchase-orders/*/receive").hasAnyRole("WAREHOUSE")
 
                         .requestMatchers("/staff/**").hasRole("ADMIN")
 

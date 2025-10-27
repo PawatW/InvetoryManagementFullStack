@@ -59,4 +59,16 @@ public class ProductBatchRepository {
     public void updateRemaining(String batchId, int remaining) {
         jdbcTemplate.update("UPDATE ProductBatch SET quantity_remaining = ? WHERE batch_id = ?", remaining, batchId);
     }
+    public void List<ProductBatch> findByProductId(@Param("productId") String productId){
+    String sql ="SELECT * FROM product_batches WHERE product_id = :productId ORDER BY received_date ASC";
+    
+    
+
+    // Ensure findById exists (CrudRepository provides this, but check if overridden)
+    // If CrudRepository<ProductBatch, String> is used, this method is inherited.
+    // Optional<ProductBatch> findById(String batchId); // Example if needed explicitly
+
+    // Add this query to find available batches for a product
+    @Query("SELECT * FROM product_batches WHERE product_id = :productId AND quantity_remaining > 0 ORDER BY expiry_date ASC NULLS LAST, received_date ASC")
+    List<ProductBatch> findAvailableBatchesByProductId(@Param("productId") String productId);
 }

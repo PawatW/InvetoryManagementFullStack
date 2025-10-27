@@ -10,11 +10,17 @@ interface NavItem {
   href: string;
   label: string;
   roles?: string[];
+  labelByRole?: Partial<Record<string, string>>;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Overview' },
-  { href: '/inventory', label: 'Inventory', roles: ['WAREHOUSE', 'ADMIN'] },
+  {
+  href: '/inventory',
+  label: 'Inventory',
+  roles: ['WAREHOUSE', 'ADMIN', 'SALES'], // <-- เพิ่ม 'SALES'
+  labelByRole: { SALES: 'Products' } // <-- เพิ่ม label สำหรับ SALES
+},
   { href: '/orders', label: 'Orders', roles: ['SALES', 'TECHNICIAN', 'ADMIN'] },
   { href: '/requests', label: 'Requests', roles: ['TECHNICIAN', 'FOREMAN', 'WAREHOUSE', 'ADMIN'] },
   { href: '/stock', label: 'Stock Ops', roles: ['WAREHOUSE', 'ADMIN'] },

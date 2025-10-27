@@ -157,4 +157,9 @@ public class StockService {
         return stockTransactionRepository.findAll();
     }
 
+    // เพิ่มใน StockService.java
+    public List<StockTransaction> getTransactionsForRequest(String requestId) {
+        return stockTransactionRepository.findByReferenceId(requestId); // ใช้ repo ที่มีอยู่แล้ว
+    }
+
 }

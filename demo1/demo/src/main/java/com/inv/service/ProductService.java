@@ -1,6 +1,8 @@
 package com.inv.service;
 
 import com.inv.model.Product;
+import com.inv.model.ProductBatch;
+import com.inv.repo.ProductBatchRepository;
 import com.inv.repo.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,8 @@ public class ProductService {
 
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private ProductBatchRepository productBatchRepository;
 
     public List<Product> getAllProducts() {
         return productRepository.findAll();
@@ -92,4 +96,25 @@ public class ProductService {
         }
         productRepository.deactivate(productId);
     }
+    // เพิ่มใน ProductService.java
+public List<ProductBatch> getProductBatches(String productId) {
+    Product existing = productRepository.findById(productId);
+    if (existing == null) {
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
+    }
+    return productBatchRepository.findByProduct(productId); // ใช้ repo ที่มีอยู่แล้ว
+}
+
+// เพิ่ม method สำหรับดึง batch เฉพาะ
+public ProductBatch getProductBatch(String productId, String batchId) {
+   Product existing = productRepository.findById(productId);
+    if (existing == null) {
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบสินค้า (Product not found)");
+    }
+    ProductBatch batch = productBatchRepository.findById(batchId);
+    if (batch == null || batch.getProductId() == null || !batch.getProductId().equals(productId)) {
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบล็อตสินค้าที่ระบุ (Product batch not found)");
+    }
+    return batch;
+}
 }

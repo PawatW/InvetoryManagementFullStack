@@ -46,7 +46,6 @@ public class RequestController {
         reqRequest.getRequest().setStaffId(staffId);
         String newRequestId = requestService.createRequest(reqRequest.getRequest(), reqRequest.getItems());
 
-        // ส่งกลับเป็น Map เพื่อให้ Spring Boot แปลงเป็น JSON
         return Collections.singletonMap("requestId", newRequestId);
     }
     @GetMapping("/pending")

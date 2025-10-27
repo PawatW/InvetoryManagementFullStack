@@ -182,14 +182,18 @@ export default function PurchaseOrdersPage() {
     setSuccessMessage(null);
 
     try {
-      const payload = {
+      const payload: {
+        supplierId: string;
+        staffId: string;
+        items: { productId: string; quantity: number }[];
+      } = {
         supplierId: trimmedSupplier,
         staffId,
         items: sanitizedItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantityValue
         }))
-      } satisfies Partial<PurchaseOrder>;
+      };
 
       await apiFetch<PurchaseOrder>('/purchase-orders', {
         method: 'POST',

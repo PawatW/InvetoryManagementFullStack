@@ -1,6 +1,7 @@
 package com.inv.controller;
 
 import com.inv.model.Product;
+import com.inv.model.ProductBatch;
 import com.inv.service.ImageService;
 import com.inv.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +59,16 @@ public class ProductController {
     public ResponseEntity<Map<String, String>> uploadProductImage(@RequestParam("file") MultipartFile file) {
         String imageUrl = imageService.uploadProductImage(file);
         return ResponseEntity.ok(Map.of("url", imageUrl));
+    }
+    // เพิ่มใน ProductController.java
+    @GetMapping("/{id}/batches")
+    public List<ProductBatch> getProductBatches(@PathVariable String id) {
+        return productService.getProductBatches(id);
+    }
+
+    @GetMapping("/{productId}/batches/{batchId}")
+    public ProductBatch getProductBatch(@PathVariable String productId, @PathVariable String batchId) {
+        return productService.getProductBatch(productId, batchId);
     }
 
 //    @PostMapping("/products/{id}/image")
