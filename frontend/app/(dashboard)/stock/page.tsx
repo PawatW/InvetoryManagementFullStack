@@ -99,7 +99,9 @@ export default function StockPage() {
         transaction.productId,
         transaction.staffId,
         transaction.type,
-        transaction.description ?? ''
+        transaction.description ?? '',
+        transaction.batchId ?? '',
+        transaction.referenceId ?? ''
       ]
         .join(' ')
         .toLowerCase();
@@ -701,19 +703,20 @@ export default function StockPage() {
                   <th className="px-4 py-3">ประเภท</th>
                   <th className="px-4 py-3">จำนวน</th>
                   <th className="px-4 py-3">ผู้ทำรายการ</th>
+                  <th className="px-4 py-3">Batch</th>
                   <th className="px-4 py-3">รายละเอียด</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {transactions === undefined ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-400">
+                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-400">
                       กำลังโหลดประวัติธุรกรรม...
                     </td>
                   </tr>
                 ) : filteredTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
+                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
                       {sortedTransactions.length === 0 ? 'ยังไม่มีธุรกรรมสต็อก' : 'ไม่พบรายการที่ตรงกับการค้นหา'}
                     </td>
                   </tr>
@@ -730,6 +733,7 @@ export default function StockPage() {
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-slate-800">{transaction.quantity}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">{transaction.staffId}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{transaction.batchId || '-'}</td>
                       <td className="px-4 py-3">
                         <button
                           type="button"
@@ -790,6 +794,14 @@ export default function StockPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500">ผู้ทำรายการ</span>
                     <span className="font-semibold text-slate-800">{inspectedTransaction.staffId}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">Batch</span>
+                    <span className="font-semibold text-slate-800">{inspectedTransaction.batchId || '-'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">อ้างอิง</span>
+                    <span className="font-semibold text-slate-800">{inspectedTransaction.referenceId || '-'}</span>
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">

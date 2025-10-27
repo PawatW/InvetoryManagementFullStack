@@ -1,6 +1,7 @@
 package com.inv.controller;
 
 import com.inv.model.Product;
+import com.inv.model.ProductBatch;
 import com.inv.service.ImageService;
 import com.inv.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,11 @@ public class ProductController {
     public ResponseEntity<Void> deactivateProduct(@PathVariable String id) {
         productService.deactivateProduct(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/batches")
+    public List<ProductBatch> getProductBatches(@PathVariable String id) {
+        return productService.getProductBatches(id);
     }
 
     @PostMapping("/upload-image")

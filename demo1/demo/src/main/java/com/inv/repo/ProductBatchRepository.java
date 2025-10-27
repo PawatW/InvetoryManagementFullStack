@@ -56,6 +56,18 @@ public class ProductBatchRepository {
         return jdbcTemplate.query(sql, this::mapRow, productId);
     }
 
+    public List<ProductBatch> findByProduct(String productId) {
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
+                "FROM ProductBatch WHERE product_id = ? ORDER BY received_date DESC, batch_id DESC";
+        return jdbcTemplate.query(sql, this::mapRow, productId);
+    }
+
+    public List<ProductBatch> findByPurchaseOrder(String poId) {
+        String sql = "SELECT batch_id, product_id, po_id, received_date, quantity_in, quantity_remaining, unit_cost, expiry_date " +
+                "FROM ProductBatch WHERE po_id = ? ORDER BY received_date DESC, batch_id DESC";
+        return jdbcTemplate.query(sql, this::mapRow, poId);
+    }
+
     public void updateRemaining(String batchId, int remaining) {
         jdbcTemplate.update("UPDATE ProductBatch SET quantity_remaining = ? WHERE batch_id = ?", remaining, batchId);
     }

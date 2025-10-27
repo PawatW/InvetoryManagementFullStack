@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
 import { apiFetch } from '../../../lib/api';
 import { useAuthedSWR } from '../../../lib/swr';
-import type { Product, PurchaseItem, PurchaseOrder, Supplier } from '../../../lib/types';
+import type { Product, PurchaseItem, PurchaseOrder, Supplier, ProductBatch } from '../../../lib/types';
 import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
 
 const STATUSES: { id: string; label: string }[] = [
@@ -49,6 +49,11 @@ export default function PurchaseOrdersPage() {
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
   const [pricingItems, setPricingItems] = useState<EditableItem[]>([]);
   const [receivingItems, setReceivingItems] = useState<EditableItem[]>([]);
+  const [detailOrder, setDetailOrder] = useState<PurchaseOrder | null>(null);
+  const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailBatches, setDetailBatches] = useState<ProductBatch[]>([]);
+  const [isDetailBatchesLoading, setDetailBatchesLoading] = useState(false);
+  const [detailBatchesError, setDetailBatchesError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -100,6 +105,14 @@ export default function PurchaseOrdersPage() {
       description: product.unit ? `หน่วย: ${product.unit}` : undefined,
       keywords: [product.productName, product.productId, product.unit ?? '', product.description ?? '']
     }));
+  }, [products]);
+
+  const productNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (products ?? []).forEach((product) => {
+      map.set(product.productId, product.productName);
+    });
+    return map;
   }, [products]);
 
   const filteredOrders = useMemo(() => {
@@ -207,6 +220,42 @@ export default function PurchaseOrdersPage() {
     } finally {
       setIsCreateSubmitting(false);
     }
+  };
+
+  const handleOpenDetail = async (orderId: string) => {
+    if (!token) return;
+    setIsLoadingDetail(true);
+    setError(null);
+    setSuccessMessage(null);
+    setDetailBatches([]);
+    setDetailBatchesError(null);
+    try {
+      const detail = await apiFetch<PurchaseOrder>(`/purchase-orders/${orderId}`, { token });
+      setDetailOrder(detail);
+      setDetailModalOpen(true);
+      setDetailBatchesLoading(true);
+      try {
+        const batches = await apiFetch<ProductBatch[]>(`/purchase-orders/${orderId}/batches`, { token });
+        setDetailBatches(batches ?? []);
+      } catch (batchErr) {
+        setDetailBatches([]);
+        setDetailBatchesError(batchErr instanceof Error ? batchErr.message : 'ไม่สามารถโหลดข้อมูลล็อตสินค้าได้');
+      } finally {
+        setDetailBatchesLoading(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลใบสั่งซื้อได้');
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  const handleCloseDetail = () => {
+    setDetailModalOpen(false);
+    setDetailOrder(null);
+    setDetailBatches([]);
+    setDetailBatchesError(null);
+    setDetailBatchesLoading(false);
   };
 
   const handleOpenPricing = async (orderId: string) => {
@@ -459,6 +508,14 @@ export default function PurchaseOrdersPage() {
                   <td className="px-4 py-3 text-sm font-semibold text-slate-700">{order.status}</td>
                   <td className="px-4 py-3 text-sm">
                     <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetail(order.poId)}
+                        className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isLoadingDetail}
+                      >
+                        ดูรายละเอียด
+                      </button>
                       {canPrice && (
                         <button
                           type="button"
@@ -487,6 +544,156 @@ export default function PurchaseOrdersPage() {
           </table>
         </div>
       </section>
+
+      {detailOrder && isDetailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl">
+            <div className="max-h-[85vh] overflow-y-auto p-6 space-y-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียดใบสั่งซื้อ</h2>
+                  <p className="text-sm text-slate-500">
+                    {detailOrder.poId} • {detailOrder.status}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseDetail}
+                  className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                >
+                  ปิด
+                </button>
+              </div>
+              <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-400">Supplier</p>
+                  <p className="font-medium text-slate-800">
+                    {supplierNameMap.get(detailOrder.supplierId) ?? detailOrder.supplierId}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-400">วันที่สร้าง</p>
+                  <p>{detailOrder.poDate ? format(new Date(detailOrder.poDate), 'dd MMM yyyy HH:mm') : '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-400">ยอดรวม</p>
+                  <p>
+                    ฿
+                    {(detailOrder.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-400">ผู้บันทึก</p>
+                  <p>{detailOrder.staffId || '-'}</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800">รายการสินค้า</h3>
+                </div>
+                {(detailOrder.items ?? []).length === 0 ? (
+                  <p className="text-sm text-slate-500">ไม่มีรายการสินค้าในใบสั่งซื้อนี้</p>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200">
+                    <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+                      <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-4 py-2">สินค้า</th>
+                          <th className="px-4 py-2">จำนวน</th>
+                          <th className="px-4 py-2">ราคาทุน/หน่วย</th>
+                          <th className="px-4 py-2">ยอดรวม</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white text-[13px]">
+                        {(detailOrder.items ?? []).map((item) => {
+                          const unitPrice = item.unitPrice ?? 0;
+                          const lineTotal = unitPrice * item.quantity;
+                          return (
+                            <tr key={item.poItemId ?? `${item.productId}-${item.quantity}`} className="hover:bg-slate-50/60">
+                              <td className="px-4 py-2">
+                                <p className="font-medium text-slate-800">
+                                  {productNameMap.get(item.productId) ?? item.productId}
+                                </p>
+                                <p className="text-xs text-slate-500">รหัส: {item.productId}</p>
+                              </td>
+                              <td className="px-4 py-2 text-slate-700">{item.quantity}</td>
+                              <td className="px-4 py-2 text-slate-700">
+                                {item.unitPrice !== undefined && item.unitPrice !== null
+                                  ? Number(item.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                  : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-slate-700">
+                                {item.unitPrice !== undefined && item.unitPrice !== null
+                                  ? lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                  : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800">ล็อตสินค้าที่เกี่ยวข้อง</h3>
+                  {isDetailBatchesLoading && <span className="text-xs text-slate-400">กำลังโหลด...</span>}
+                </div>
+                {detailBatchesError && (
+                  <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{detailBatchesError}</div>
+                )}
+                {!isDetailBatchesLoading && !detailBatchesError && detailBatches.length === 0 && (
+                  <p className="text-sm text-slate-500">ยังไม่มีข้อมูลล็อตสินค้าสำหรับใบสั่งซื้อนี้</p>
+                )}
+                {!isDetailBatchesLoading && detailBatches.length > 0 && (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200">
+                    <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
+                      <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-4 py-2">Batch ID</th>
+                          <th className="px-4 py-2">สินค้า</th>
+                          <th className="px-4 py-2">รับเข้าเมื่อ</th>
+                          <th className="px-4 py-2">จำนวนรับ</th>
+                          <th className="px-4 py-2">คงเหลือ</th>
+                          <th className="px-4 py-2">ราคาทุน/หน่วย</th>
+                          <th className="px-4 py-2">วันหมดอายุ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white text-[13px]">
+                        {detailBatches.map((batch) => (
+                          <tr key={batch.batchId} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-2 font-mono text-[11px] text-slate-500">{batch.batchId}</td>
+                            <td className="px-4 py-2 text-slate-700">
+                              <p className="font-medium text-slate-800">
+                                {productNameMap.get(batch.productId) ?? batch.productId}
+                              </p>
+                              <p className="text-xs text-slate-500">{batch.productId}</p>
+                            </td>
+                            <td className="px-4 py-2 text-slate-600">
+                              {batch.receivedDate ? format(new Date(batch.receivedDate), 'dd MMM yyyy HH:mm') : '-'}
+                            </td>
+                            <td className="px-4 py-2 font-semibold text-slate-800">{batch.quantityIn}</td>
+                            <td className="px-4 py-2 text-slate-700">{batch.quantityRemaining}</td>
+                            <td className="px-4 py-2 text-slate-700">
+                              {batch.unitCost !== undefined && batch.unitCost !== null
+                                ? Number(batch.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                : '-'}
+                            </td>
+                            <td className="px-4 py-2 text-slate-600">
+                              {batch.expiryDate ? format(new Date(batch.expiryDate), 'dd MMM yyyy') : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
