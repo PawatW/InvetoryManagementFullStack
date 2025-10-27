@@ -19,6 +19,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.beans.factory.annotation.Value;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 public class SecurityConfig {
@@ -42,7 +44,19 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // configuration.addAllowedOrigin("http://localhost:3000"); // React dev server
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        List<String> configuredOrigins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .collect(Collectors.toList());
+
+        if (configuredOrigins.isEmpty()) {
+            configuration.addAllowedOriginPattern("*");
+        } else if (configuredOrigins.stream().anyMatch(origin -> origin.contains("*"))) {
+            configuration.setAllowedOriginPatterns(configuredOrigins);
+        } else {
+            configuration.setAllowedOrigins(configuredOrigins);
+        }
+
         configuration.addAllowedMethod("*"); // GET, POST, PUT, DELETE
         configuration.addAllowedHeader("*");
         configuration.setAllowCredentials(true);
