@@ -32,6 +32,7 @@ export default function StockPage() {
   const [isReceiveModalOpen, setReceiveModalOpen] = useState(false);
   const [isReceiving, setIsReceiving] = useState(false);
   const [isLoadingPoDetail, setIsLoadingPoDetail] = useState(false);
+  const [isPendingPoModalOpen, setPendingPoModalOpen] = useState(false);
 
   const canStockIn = role === 'WAREHOUSE';
   const canReceiveFromPurchaseOrder = role === 'WAREHOUSE' || role === 'ADMIN';
@@ -222,6 +223,7 @@ export default function StockPage() {
         }))
       );
       setReceiveModalOpen(true);
+      setPendingPoModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลใบสั่งซื้อได้');
     } finally {
@@ -329,71 +331,27 @@ export default function StockPage() {
                 >
                   ปรับสต็อก
                 </button>
+                {canReceiveFromPurchaseOrder && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setMessage(null);
+                      setPendingPoModalOpen(true);
+                    }}
+                    className="w-full rounded-xl border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-600 transition hover:border-primary-300 hover:bg-primary-50 md:w-auto"
+                  >
+                    เพิ่มตาม PO
+                  </button>
+                )}
               </div>
             </div>
+            {canReceiveFromPurchaseOrder && (
+              <p className="text-xs text-slate-500">
+                สามารถเลือกใบสั่งซื้อสถานะ Pending เพื่อยืนยันการรับสินค้าเข้าคลังได้จากปุ่ม "เพิ่มตาม PO"
+              </p>
+            )}
           </section>
-
-          {canReceiveFromPurchaseOrder && (
-            <section className="card space-y-4 p-6">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-slate-900">รับสินค้าเข้าจาก Purchase Order</h2>
-                <p className="text-sm text-slate-500">เลือกใบสั่งซื้อสถานะ Pending เพื่อยืนยันการรับสินค้าเข้าคลัง</p>
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">PO ID</th>
-                      <th className="px-4 py-3">Supplier</th>
-                      <th className="px-4 py-3">วันที่</th>
-                      <th className="px-4 py-3">ยอดรวม</th>
-                      <th className="px-4 py-3">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {pendingPurchaseOrders === undefined ? (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-400">
-                          กำลังโหลดข้อมูล...
-                        </td>
-                      </tr>
-                    ) : sortedPendingOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
-                          ไม่มีใบสั่งซื้อรอรับสินค้า
-                        </td>
-                      </tr>
-                    ) : (
-                      sortedPendingOrders.map((order) => (
-                        <tr key={order.poId} className="hover:bg-slate-50">
-                          <td className="px-4 py-3 font-mono text-xs text-slate-500">{order.poId}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">
-                            {supplierNameMap.get(order.supplierId) ?? order.supplierId}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-500">
-                            {order.poDate ? format(new Date(order.poDate), 'dd MMM yyyy HH:mm') : '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600">
-                            ฿{(order.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenReceiveFromPo(order.poId)}
-                              className="rounded-lg border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:border-primary-300 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
-                              disabled={isLoadingPoDetail}
-                            >
-                              รับสินค้า
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
 
           {isStockInModalOpen && (
             <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
@@ -407,11 +365,11 @@ export default function StockPage() {
                       </div>
                       <button
                         type="button"
-                          onClick={() => {
-                            setStockInModalOpen(false);
-                            setFormResetKey((prev) => prev + 1);
-                            setSelectedProductId('');
-                          }}
+                        onClick={() => {
+                          setStockInModalOpen(false);
+                          setFormResetKey((prev) => prev + 1);
+                          setSelectedProductId('');
+                        }}
                         className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
                       >
                         ปิด
@@ -462,6 +420,83 @@ export default function StockPage() {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {canReceiveFromPurchaseOrder && isPendingPoModalOpen && (
+            <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60">
+              <div className="flex min-h-full items-center justify-center p-4">
+                <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl">
+                  <div className="max-h-[85vh] overflow-y-auto p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-semibold text-slate-900">เลือกใบสั่งซื้อที่รอรับสินค้า</h2>
+                        <p className="text-sm text-slate-500">ตรวจสอบรายการ Pending Purchase Order และกดรับสินค้าเข้าคลัง</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPendingPoModalOpen(false)}
+                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                      >
+                        ปิด
+                      </button>
+                    </div>
+                    <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                        <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          <tr>
+                            <th className="px-4 py-3">PO ID</th>
+                            <th className="px-4 py-3">Supplier</th>
+                            <th className="px-4 py-3">วันที่</th>
+                            <th className="px-4 py-3">ยอดรวม</th>
+                            <th className="px-4 py-3">จัดการ</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {pendingPurchaseOrders === undefined ? (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-400">
+                                กำลังโหลดข้อมูล...
+                              </td>
+                            </tr>
+                          ) : sortedPendingOrders.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                                ไม่มีใบสั่งซื้อรอรับสินค้า
+                              </td>
+                            </tr>
+                          ) : (
+                            sortedPendingOrders.map((order) => (
+                              <tr key={order.poId} className="hover:bg-slate-50">
+                                <td className="px-4 py-3 font-mono text-xs text-slate-500">{order.poId}</td>
+                                <td className="px-4 py-3 text-sm text-slate-600">
+                                  {supplierNameMap.get(order.supplierId) ?? order.supplierId}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-500">
+                                  {order.poDate ? format(new Date(order.poDate), 'dd MMM yyyy HH:mm') : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-600">
+                                  ฿{(order.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenReceiveFromPo(order.poId)}
+                                    className="rounded-lg border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:border-primary-300 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    disabled={isLoadingPoDetail}
+                                  >
+                                    {isLoadingPoDetail ? 'กำลังโหลด...' : 'รับสินค้า'}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
