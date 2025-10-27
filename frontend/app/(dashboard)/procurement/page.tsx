@@ -69,7 +69,7 @@ export default function ProcurementOverviewPage() {
             <p className="text-sm text-slate-500">ตรวจสอบใบสั่งซื้อใหม่ กรอกราคาทุน และยืนยันการรับสินค้า</p>
           </div>
           <Link
-            href="/procurement/purchase-orders"
+            href="/purchase-orders"
             className="w-full rounded-xl bg-primary-600 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-primary-500 md:w-auto"
           >
             ไปที่ Purchase Orders
