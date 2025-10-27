@@ -40,6 +40,33 @@ const formatDateTime = (value?: string | number | null, pattern = 'dd MMM yyyy H
   return date ? format(date, pattern) : '-';
 };
 
+const planBatchAllocation = (batches: ProductBatch[], quantity: number) => {
+  let remaining = quantity;
+  const allocations: { batch: ProductBatch; take: number; remainingAfter: number }[] = [];
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return { allocations, shortfall: 0 };
+  }
+
+  for (const batch of batches) {
+    if (remaining <= 0) {
+      break;
+    }
+    const available = Math.max(0, batch.quantityRemaining ?? 0);
+    if (available <= 0) {
+      continue;
+    }
+    const take = Math.min(available, remaining);
+    if (take <= 0) {
+      continue;
+    }
+    allocations.push({ batch, take, remainingAfter: Math.max(available - take, 0) });
+    remaining -= take;
+  }
+
+  return { allocations, shortfall: Math.max(remaining, 0) };
+};
+
 export default function RequestsPage() {
   const { role, token, staffId } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -1198,6 +1225,10 @@ export default function RequestsPage() {
                           const batchState = warehouseBatchState[item.productId];
                           const availableBatches = batchState?.batches ?? [];
                           const visibleBatches = availableBatches.slice(0, 3);
+                          const plannedAllocation = planBatchAllocation(
+                            availableBatches,
+                            canFulfillItem ? quantityForInput : 0
+                          );
 
                           return (
                             <li
@@ -1279,6 +1310,54 @@ export default function RequestsPage() {
                                 )}
                                 {availableBatches.length > visibleBatches.length && (
                                   <p className="mt-2 text-[11px] text-slate-400">มีล็อตทั้งหมด {availableBatches.length.toLocaleString('th-TH')} รายการ</p>
+                                )}
+                                {canFulfillItem && quantityForInput > 0 && (
+                                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-[11px] text-slate-600">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-semibold text-slate-600">ล็อตที่จะใช้</span>
+                                      <span className="text-slate-400">
+                                        ตามจำนวนเบิก {quantityForInput.toLocaleString('th-TH')} ชิ้น
+                                      </span>
+                                    </div>
+                                    {plannedAllocation.allocations.length > 0 ? (
+                                      <ul className="mt-2 space-y-2">
+                                        {plannedAllocation.allocations.map(({ batch, take, remainingAfter }) => (
+                                          <li key={`planned-${batch.batchId}`} className="rounded-lg bg-slate-50 px-3 py-2">
+                                            <div className="flex items-center justify-between gap-3">
+                                              <span className="font-mono text-[11px] text-slate-500">{batch.batchId}</span>
+                                              <span className="text-sm font-semibold text-slate-800">
+                                                เบิก {take.toLocaleString('th-TH')} ชิ้น
+                                              </span>
+                                            </div>
+                                            <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-500">
+                                              <span>
+                                                รับเข้า {batch.receivedDate ? format(new Date(batch.receivedDate), 'dd MMM yyyy') : '-'}
+                                              </span>
+                                              <span className="text-right">
+                                                คงเหลือหลังเบิก {remainingAfter.toLocaleString('th-TH')} ชิ้น
+                                              </span>
+                                              <span>
+                                                หมดอายุ {batch.expiryDate ? format(new Date(batch.expiryDate), 'dd MMM yyyy') : '-'}
+                                              </span>
+                                              <span className="text-right">
+                                                ต้นทุน/หน่วย{' '}
+                                                {batch.unitCost !== undefined && batch.unitCost !== null
+                                                  ? Number(batch.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                                  : '-'}
+                                              </span>
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="mt-2 text-[11px] text-slate-400">ยังไม่มีล็อตที่พร้อมสำหรับจำนวนที่เลือก</p>
+                                    )}
+                                    {plannedAllocation.shortfall > 0 && (
+                                      <p className="mt-2 text-[11px] text-amber-600">
+                                        ล็อตคงเหลือไม่เพียงพอ ขาด {plannedAllocation.shortfall.toLocaleString('th-TH')} ชิ้น
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </li>
