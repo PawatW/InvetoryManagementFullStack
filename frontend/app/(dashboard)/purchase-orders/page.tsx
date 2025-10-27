@@ -2,11 +2,11 @@
 
 import { FormEvent, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { useAuth } from '../../../../components/AuthContext';
-import { apiFetch } from '../../../../lib/api';
-import { useAuthedSWR } from '../../../../lib/swr';
-import type { Product, PurchaseItem, PurchaseOrder, Supplier } from '../../../../lib/types';
-import { SearchableSelect, type SearchableOption } from '../../../../components/SearchableSelect';
+import { useAuth } from '../../../components/AuthContext';
+import { apiFetch } from '../../../lib/api';
+import { useAuthedSWR } from '../../../lib/swr';
+import type { Product, PurchaseItem, PurchaseOrder, Supplier } from '../../../lib/types';
+import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
 
 const STATUSES: { id: string; label: string }[] = [
   { id: 'New order', label: 'New order' },
