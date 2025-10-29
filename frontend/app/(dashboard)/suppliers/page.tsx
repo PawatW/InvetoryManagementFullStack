@@ -29,7 +29,7 @@ export default function SuppliersPage() {
   const [deactivatingSupplierId, setDeactivatingSupplierId] = useState<string | null>(null);
 
 
-  const canCreate = role === 'SALES';
+  const canCreate = role === 'PROCUREMENT';
 
   const filteredSuppliers = useMemo(() => {
     const data = suppliers ?? [];
