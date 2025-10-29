@@ -103,9 +103,6 @@ export default function RequestsPage() {
   const [requestTransactions, setRequestTransactions] = useState<StockTransaction[]>([]);
   const [isRequestTransactionsLoading, setRequestTransactionsLoading] = useState(false);
   const [requestTransactionsError, setRequestTransactionsError] = useState<string | null>(null);
-  const [requestBatchDetails, setRequestBatchDetails] = useState<
-    Record<string, { data: ProductBatch | null; loading: boolean; error: string | null; fetched: boolean }>
-  >({});
   const previousWarehouseRequestId = useRef<string | null>(null);
 
   const { data: confirmedOrders } = useAuthedSWR<Order[]>(role === 'TECHNICIAN' ? '/orders/confirmed' : null, token);
@@ -519,7 +516,6 @@ export default function RequestsPage() {
     let cancelled = false;
     setRequestTransactionsLoading(true);
     setRequestTransactionsError(null);
-    setRequestBatchDetails({});
 
     void apiFetch<StockTransaction[]>(`/stock/requests/${warehouseModalRequestId}/transactions`, { token })
       .then((transactions) => {
@@ -542,71 +538,6 @@ export default function RequestsPage() {
       cancelled = true;
     };
   }, [token, warehouseModalRequestId, isWarehouseModalOpen]);
-
-  useEffect(() => {
-    if (!token || !isWarehouseModalOpen || requestTransactions.length === 0) {
-      return;
-    }
-
-    const targets = requestTransactions
-      .map((transaction) => ({ batchId: transaction.batchId, productId: transaction.productId }))
-      .filter((entry): entry is { batchId: string; productId: string } => Boolean(entry.batchId))
-      .filter((entry) => {
-        const detail = requestBatchDetails[entry.batchId];
-        return !detail || (!detail.loading && !detail.fetched);
-      });
-
-    if (targets.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-
-    targets.forEach(({ batchId, productId }) => {
-      setRequestBatchDetails((prev) => ({
-        ...prev,
-        [batchId]: {
-          data: prev[batchId]?.data ?? null,
-          loading: true,
-          error: null,
-          fetched: prev[batchId]?.fetched ?? false
-        }
-      }));
-
-      void (async () => {
-        try {
-          const batch = await apiFetch<ProductBatch>(`/products/${productId}/batches/${batchId}`, { token });
-          if (!cancelled) {
-            setRequestBatchDetails((prev) => ({
-              ...prev,
-              [batchId]: {
-                data: batch ?? null,
-                loading: false,
-                error: null,
-                fetched: true
-              }
-            }));
-          }
-        } catch (err) {
-          if (!cancelled) {
-            setRequestBatchDetails((prev) => ({
-              ...prev,
-              [batchId]: {
-                data: null,
-                loading: false,
-                error: err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลล็อตสินค้าได้',
-                fetched: true
-              }
-            }));
-          }
-        }
-      })();
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [token, isWarehouseModalOpen, requestTransactions, requestBatchDetails]);
 
   useEffect(() => {
     if (statusOverrides.size === 0) {
@@ -1266,7 +1197,6 @@ export default function RequestsPage() {
                             : item.productId;
                           const batchState = warehouseBatchState[item.productId];
                           const availableBatches = batchState?.batches ?? [];
-                          const visibleBatches = availableBatches.slice(0, 3);
                           const plannedAllocation = planBatchAllocation(
                             availableBatches,
                             canFulfillItem ? quantityForInput : 0
@@ -1317,52 +1247,21 @@ export default function RequestsPage() {
                               </div>
                               <div className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 md:basis-full">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="font-semibold text-slate-600">ล็อตคงเหลือ</span>
+                                  <span className="font-semibold text-slate-600">ล็อตที่จะใช้</span>
                                   {batchState?.isLoading && (
                                     <span className="text-[11px] text-slate-400">กำลังโหลด...</span>
                                   )}
                                 </div>
-                                {batchState?.error ? (
+                                {batchState?.error && (
                                   <p className="mt-2 text-[11px] text-rose-600">{batchState.error}</p>
-                                ) : !batchState?.isLoading && availableBatches.length === 0 ? (
-                                  <p className="mt-2 text-[11px] text-slate-400">ไม่มีล็อตที่มีคงเหลือ</p>
-                                ) : (
-                                  <ul className="mt-2 space-y-2">
-                                    {visibleBatches.map((batch) => (
-                                      <li key={batch.batchId} className="rounded-lg bg-slate-50 px-3 py-2">
-                                        <div className="flex items-center justify-between gap-3">
-                                          <span className="font-mono text-[11px] text-slate-500">{batch.batchId}</span>
-                                          <span className="text-sm font-semibold text-slate-800">
-                                            {batch.quantityRemaining.toLocaleString('th-TH')} ชิ้น
-                                          </span>
-                                        </div>
-                                        <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-500">
-                                          <span>รับเข้า {batch.receivedDate ? format(new Date(batch.receivedDate), 'dd MMM yyyy') : '-'}</span>
-                                          <span className="text-right">
-                                            ต้นทุน {batch.unitCost !== undefined && batch.unitCost !== null
-                                              ? Number(batch.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
-                                              : '-'}
-                                          </span>
-                                          <span>หมดอายุ {batch.expiryDate ? format(new Date(batch.expiryDate), 'dd MMM yyyy') : '-'}</span>
-                                          <span className="text-right">รับมา {batch.quantityIn.toLocaleString('th-TH')} ชิ้น</span>
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
                                 )}
-                                {availableBatches.length > visibleBatches.length && (
-                                  <p className="mt-2 text-[11px] text-slate-400">มีล็อตทั้งหมด {availableBatches.length.toLocaleString('th-TH')} รายการ</p>
-                                )}
-                                {canFulfillItem && quantityForInput > 0 && (
-                                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-[11px] text-slate-600">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="font-semibold text-slate-600">ล็อตที่จะใช้</span>
-                                      <span className="text-slate-400">
-                                        ตามจำนวนเบิก {quantityForInput.toLocaleString('th-TH')} ชิ้น
-                                      </span>
-                                    </div>
+                                {canFulfillItem && quantityForInput > 0 ? (
+                                  <div className="mt-3 space-y-2 text-[11px] text-slate-600">
+                                    <p className="text-slate-500">
+                                      ตามจำนวนเบิก {quantityForInput.toLocaleString('th-TH')} ชิ้น
+                                    </p>
                                     {plannedAllocation.allocations.length > 0 ? (
-                                      <ul className="mt-2 space-y-2">
+                                      <ul className="space-y-2">
                                         {plannedAllocation.allocations.map(({ batch, take, remainingAfter }) => (
                                           <li key={`planned-${batch.batchId}`} className="rounded-lg bg-slate-50 px-3 py-2">
                                             <div className="flex items-center justify-between gap-3">
@@ -1392,14 +1291,16 @@ export default function RequestsPage() {
                                         ))}
                                       </ul>
                                     ) : (
-                                      <p className="mt-2 text-[11px] text-slate-400">ยังไม่มีล็อตที่พร้อมสำหรับจำนวนที่เลือก</p>
+                                      <p className="text-[11px] text-slate-400">ยังไม่มีล็อตที่พร้อมสำหรับจำนวนที่เลือก</p>
                                     )}
                                     {plannedAllocation.shortfall > 0 && (
-                                      <p className="mt-2 text-[11px] text-amber-600">
+                                      <p className="text-[11px] text-amber-600">
                                         ล็อตคงเหลือไม่เพียงพอ ขาด {plannedAllocation.shortfall.toLocaleString('th-TH')} ชิ้น
                                       </p>
                                     )}
                                   </div>
+                                ) : (
+                                  <p className="mt-2 text-[11px] text-slate-400">กำหนดจำนวนที่จะเบิกเพื่อคำนวณล็อตที่ต้องใช้</p>
                                 )}
                               </div>
                             </li>
@@ -1449,7 +1350,6 @@ export default function RequestsPage() {
                               <th className="px-4 py-2">จำนวน</th>
                               <th className="px-4 py-2">ผู้ทำรายการ</th>
                               <th className="px-4 py-2">รายละเอียด</th>
-                              <th className="px-4 py-2">ข้อมูลล็อต</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 bg-white text-[13px]">
@@ -1458,12 +1358,6 @@ export default function RequestsPage() {
                               const productLabel = product?.productName
                                 ? `${product.productName} (${product.productId})`
                                 : transaction.productId;
-                              const batchInfo = transaction.batchId
-                                ? requestBatchDetails[transaction.batchId]
-                                : undefined;
-                              const batchDetail = batchInfo?.data ?? null;
-                              const batchLoading = transaction.batchId ? batchInfo?.loading : false;
-                              const batchError = transaction.batchId ? batchInfo?.error : null;
 
                               return (
                                 <tr key={transaction.transactionId} className="hover:bg-slate-50/60">
@@ -1480,38 +1374,6 @@ export default function RequestsPage() {
                                   <td className="px-4 py-3 text-slate-600">{transaction.staffId}</td>
                                   <td className="px-4 py-3 text-slate-600">
                                     {transaction.description || '-'}
-                                  </td>
-                                  <td className="px-4 py-3 text-slate-600">
-                                    {!transaction.batchId && <span className="text-[11px] text-slate-400">ไม่มีข้อมูลล็อต</span>}
-                                    {transaction.batchId && batchLoading && (
-                                      <span className="text-[11px] text-slate-400">กำลังโหลดข้อมูลล็อต...</span>
-                                    )}
-                                    {transaction.batchId && batchError && (
-                                      <span className="text-[11px] text-rose-600">{batchError}</span>
-                                    )}
-                                    {transaction.batchId && !batchLoading && !batchError && batchDetail && (
-                                      <div className="space-y-1 text-[11px] text-slate-500">
-                                        <p>
-                                          รับเข้า {batchDetail.receivedDate ? format(new Date(batchDetail.receivedDate), 'dd MMM yyyy HH:mm') : '-'}
-                                        </p>
-                                        <p>
-                                          หมดอายุ {batchDetail.expiryDate ? format(new Date(batchDetail.expiryDate), 'dd MMM yyyy') : '-'}
-                                        </p>
-                                        <p>
-                                          ต้นทุน/หน่วย{' '}
-                                          {batchDetail.unitCost !== undefined && batchDetail.unitCost !== null
-                                            ? Number(batchDetail.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
-                                            : '-'}
-                                        </p>
-                                        <p>
-                                          รับมา {batchDetail.quantityIn.toLocaleString('th-TH')} ชิ้น • คงเหลือ{' '}
-                                          {batchDetail.quantityRemaining.toLocaleString('th-TH')} ชิ้น
-                                        </p>
-                                      </div>
-                                    )}
-                                    {transaction.batchId && !batchLoading && !batchError && !batchDetail && (
-                                      <span className="text-[11px] text-slate-400">ไม่พบข้อมูลล็อต</span>
-                                    )}
                                   </td>
                                 </tr>
                               );

@@ -54,9 +54,6 @@ export default function PurchaseOrdersPage() {
   const [receivingItems, setReceivingItems] = useState<EditableItem[]>([]);
   const [detailOrder, setDetailOrder] = useState<PurchaseOrder | null>(null);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-  const [detailBatches, setDetailBatches] = useState<ProductBatch[]>([]);
-  const [isDetailBatchesLoading, setDetailBatchesLoading] = useState(false);
-  const [detailBatchesError, setDetailBatchesError] = useState<string | null>(null);
   const [detailSlipError, setDetailSlipError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -235,23 +232,11 @@ export default function PurchaseOrdersPage() {
     setIsLoadingDetail(true);
     setError(null);
     setSuccessMessage(null);
-    setDetailBatches([]);
-    setDetailBatchesError(null);
     setDetailSlipError(false);
     try {
       const detail = await apiFetch<PurchaseOrder>(`/purchase-orders/${orderId}`, { token });
       setDetailOrder(detail);
       setDetailModalOpen(true);
-      setDetailBatchesLoading(true);
-      try {
-        const batches = await apiFetch<ProductBatch[]>(`/purchase-orders/${orderId}/batches`, { token });
-        setDetailBatches(batches ?? []);
-      } catch (batchErr) {
-        setDetailBatches([]);
-        setDetailBatchesError(batchErr instanceof Error ? batchErr.message : 'ไม่สามารถโหลดข้อมูลล็อตสินค้าได้');
-      } finally {
-        setDetailBatchesLoading(false);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลใบสั่งซื้อได้');
     } finally {
@@ -262,9 +247,6 @@ export default function PurchaseOrdersPage() {
   const handleCloseDetail = () => {
     setDetailModalOpen(false);
     setDetailOrder(null);
-    setDetailBatches([]);
-    setDetailBatchesError(null);
-    setDetailBatchesLoading(false);
     setDetailSlipError(false);
   };
 
@@ -705,61 +687,6 @@ export default function PurchaseOrdersPage() {
                             </tr>
                           );
                         })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-800">ล็อตสินค้าที่เกี่ยวข้อง</h3>
-                  {isDetailBatchesLoading && <span className="text-xs text-slate-400">กำลังโหลด...</span>}
-                </div>
-                {detailBatchesError && (
-                  <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{detailBatchesError}</div>
-                )}
-                {!isDetailBatchesLoading && !detailBatchesError && detailBatches.length === 0 && (
-                  <p className="text-sm text-slate-500">ยังไม่มีข้อมูลล็อตสินค้าสำหรับใบสั่งซื้อนี้</p>
-                )}
-                {!isDetailBatchesLoading && detailBatches.length > 0 && (
-                  <div className="overflow-hidden rounded-2xl border border-slate-200">
-                    <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
-                      <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <tr>
-                          <th className="px-4 py-2">Batch ID</th>
-                          <th className="px-4 py-2">สินค้า</th>
-                          <th className="px-4 py-2">รับเข้าเมื่อ</th>
-                          <th className="px-4 py-2">จำนวนรับ</th>
-                          <th className="px-4 py-2">คงเหลือ</th>
-                          <th className="px-4 py-2">ราคาทุน/หน่วย</th>
-                          <th className="px-4 py-2">วันหมดอายุ</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 bg-white text-[13px]">
-                        {detailBatches.map((batch) => (
-                          <tr key={batch.batchId} className="hover:bg-slate-50/60">
-                            <td className="px-4 py-2 font-mono text-[11px] text-slate-500">{batch.batchId}</td>
-                            <td className="px-4 py-2 text-slate-700">
-                              <p className="font-medium text-slate-800">
-                                {productNameMap.get(batch.productId) ?? batch.productId}
-                              </p>
-                              <p className="text-xs text-slate-500">{batch.productId}</p>
-                            </td>
-                            <td className="px-4 py-2 text-slate-600">
-                              {batch.receivedDate ? format(new Date(batch.receivedDate), 'dd MMM yyyy HH:mm') : '-'}
-                            </td>
-                            <td className="px-4 py-2 font-semibold text-slate-800">{batch.quantityIn}</td>
-                            <td className="px-4 py-2 text-slate-700">{batch.quantityRemaining}</td>
-                            <td className="px-4 py-2 text-slate-700">
-                              {batch.unitCost !== undefined && batch.unitCost !== null
-                                ? Number(batch.unitCost).toLocaleString(undefined, { minimumFractionDigits: 2 })
-                                : '-'}
-                            </td>
-                            <td className="px-4 py-2 text-slate-600">
-                              {batch.expiryDate ? format(new Date(batch.expiryDate), 'dd MMM yyyy') : '-'}
-                            </td>
-                          </tr>
-                        ))}
                       </tbody>
                     </table>
                   </div>
