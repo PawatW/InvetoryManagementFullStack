@@ -25,11 +25,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center opacity-25" />
         <div className="relative z-10 max-w-lg space-y-6 rounded-3xl bg-black/40 p-12 text-white backdrop-blur">
           <div className="inline-flex rounded-2xl bg-primary-500/20 px-4 py-2 text-xs uppercase tracking-[0.3em]">AstarService</div>
-          <h1 className="text-4xl font-semibold leading-tight">Inventory orchestration for every role in your service team</h1>
-          <p className="text-base text-slate-200">
-            เข้าถึงคำสั่งซื้อ การเบิกสินค้า และการจัดการสต็อกผ่านพอร์ทัลเดียว พร้อมเวิร์กโฟลว์ตามบทบาทตามที่กำหนดไว้ใน
-            AstarService use case.
-          </p>
+          <h1 className="text-4xl font-semibold leading-tight">Inventory management system</h1>
         </div>
       </div>
       <div className="flex w-full items-center justify-center bg-white px-6 py-12 sm:px-12 lg:w-[480px]">

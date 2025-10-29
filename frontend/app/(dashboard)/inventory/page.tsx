@@ -585,9 +585,7 @@ export default function InventoryPage() {
                       <label className="block text-xs font-medium text-slate-500">คำอธิบาย</label>
                       <textarea name="description" rows={3} placeholder="ระบุรายละเอียดสินค้าเพิ่มเติม" />
                     </div>
-                    <p className="md:col-span-2 text-xs text-slate-400">
-                      หากจำนวนมากกว่า 1 หน่วย ระบบจะเปิดให้กรอกราคาทุนและบันทึกธุรกรรม Stock-in ให้โดยอัตโนมัติ
-                    </p>
+
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">Supplier</label>
                       <SearchableSelect
@@ -611,7 +609,6 @@ export default function InventoryPage() {
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">รูปสินค้า (อัปโหลด)</label>
                       <input name="imageFile" type="file" accept="image/*" className="block w-full" />
-                      <p className="text-xs text-slate-400">ไม่เลือกก็ได้ ระบบจะอัปโหลดไปยัง Cloudinary ให้อัตโนมัติเมื่อบันทึกสินค้า</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-3">

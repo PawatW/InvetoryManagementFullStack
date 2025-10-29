@@ -103,6 +103,7 @@ export default function RequestsPage() {
   const [requestTransactions, setRequestTransactions] = useState<StockTransaction[]>([]);
   const [isRequestTransactionsLoading, setRequestTransactionsLoading] = useState(false);
   const [requestTransactionsError, setRequestTransactionsError] = useState<string | null>(null);
+  const [requestBatchDetails, setRequestBatchDetails] = useState<Record<string, unknown>>({});
   const previousWarehouseRequestId = useRef<string | null>(null);
 
   const { data: confirmedOrders } = useAuthedSWR<Order[]>(role === 'TECHNICIAN' ? '/orders/confirmed' : null, token);
@@ -1196,6 +1197,7 @@ export default function RequestsPage() {
                             ? `${product.productName} (${product.productId})`
                             : item.productId;
                           const batchState = warehouseBatchState[item.productId];
+                          
                           const availableBatches = batchState?.batches ?? [];
                           const plannedAllocation = planBatchAllocation(
                             availableBatches,

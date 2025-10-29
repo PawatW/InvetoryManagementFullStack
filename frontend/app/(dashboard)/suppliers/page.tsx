@@ -447,7 +447,6 @@ export default function SuppliersPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h2 className="text-lg font-semibold text-slate-900">เพิ่ม Supplier</h2>
-                        <p className="text-sm text-slate-500">ระบุข้อมูลบริษัทให้ครบถ้วนเพื่อใช้อ้างอิงใน Stock-In</p>
                       </div>
                       <button
                         type="button"

@@ -10,7 +10,7 @@ import { SearchableSelect, type SearchableOption } from '../../../components/Sea
 
 const STATUSES: { id: string; label: string }[] = [
   { id: 'New order', label: 'New order' },
-  { id: 'Pending', label: 'Pending pricing' },
+  { id: 'Pending', label: 'Pending receiving' },
   { id: 'Received', label: 'Received' },
   { id: 'Rejected', label: 'Rejected' }
 ];
@@ -456,9 +456,6 @@ export default function PurchaseOrdersPage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Purchase Orders</h1>
-            <p className="text-sm text-slate-500">
-              จัดการใบสั่งซื้อจาก Supplier กรอกราคาทุน และยืนยันการรับสินค้าเข้าคลัง
-            </p>
           </div>
           {canCreate && (
             <button
