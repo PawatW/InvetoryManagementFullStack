@@ -25,8 +25,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/requests', label: 'Requests', roles: ['TECHNICIAN', 'FOREMAN', 'WAREHOUSE', 'ADMIN'] },
   { href: '/stock', label: 'Stock Ops', roles: ['WAREHOUSE', 'ADMIN'] },
   { href: '/customers', label: 'Customers', roles: ['SALES', 'TECHNICIAN', 'ADMIN'] },
-  { href: '/suppliers', label: 'Suppliers', roles: ['WAREHOUSE', 'SALES', 'ADMIN'] },
+  { href: '/suppliers', label: 'Suppliers', roles: ['WAREHOUSE', 'SALES', 'PROCUREMENT', 'ADMIN'] },
   { href: '/purchase-orders', label: 'Purchase Orders', roles: ['WAREHOUSE', 'PROCUREMENT', 'ADMIN'] },
+  { href: '/admin/report-export', label: 'Report Export', roles: ['ADMIN'] },
   { href: '/admin/staff', label: 'Staff', roles: ['ADMIN'] }
 ];
 
@@ -40,10 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <aside className="hidden w-72 flex-col bg-slate-900 text-slate-100 lg:flex">
         <div className="flex h-20 items-center gap-3 border-b border-slate-800 px-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-500 font-semibold text-white">SA</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-500 font-semibold text-white">AS</div>
           <div>
             <p className="text-lg font-semibold">Smart Inventory</p>
-            <p className="text-sm text-slate-400">Service Accelerator</p>
+            <p className="text-sm text-slate-400">AstarService</p>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">
@@ -69,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-slate-200 bg-white px-6">
           <div>
-            <p className="text-base font-semibold text-slate-900">{role ? `สวัสดี ${ROLE_LABELS[role] || role}` : 'Smart Inventory'}</p>
+            <p className="text-base font-semibold text-slate-900">{role ? ROLE_LABELS[role] || role : 'Smart Inventory'}</p>
             <p className="text-sm text-slate-500">Staff ID: {staffId ?? '-'}</p>
           </div>
           <div className="flex items-center gap-3">
