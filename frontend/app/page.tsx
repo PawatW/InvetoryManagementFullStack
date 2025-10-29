@@ -22,7 +22,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-stretch bg-gradient-to-br from-primary-900 via-slate-900 to-slate-800">
       <div className="relative hidden flex-1 items-center justify-center overflow-hidden lg:flex">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center opacity-25" />
+      <div className="absolute inset-0 bg-[url('/images/images.jpg')] bg-cover bg-center opacity-25" />
         <div className="relative z-10 max-w-lg space-y-6 rounded-3xl bg-black/40 p-12 text-white backdrop-blur">
           <div className="inline-flex rounded-2xl bg-primary-500/20 px-4 py-2 text-xs uppercase tracking-[0.3em]">AstarService</div>
           <h1 className="text-4xl font-semibold leading-tight">Inventory management system</h1>
