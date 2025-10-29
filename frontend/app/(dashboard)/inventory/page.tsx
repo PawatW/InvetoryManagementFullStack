@@ -52,7 +52,7 @@ export default function InventoryPage() {
   const canEditSellPrice = role === 'SALES' || role === 'ADMIN';
   const canCreateCustomers = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
   const canCreateOrders = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
-  const isInitialCostEnabled = initialQuantity > 1;
+  const isInitialCostEnabled = initialQuantity >= 1;
   const { data: suppliers } = useAuthedSWR<Supplier[]>(canManage ? '/suppliers' : null, token);
   const { data: products, mutate, isLoading } = useAuthedSWR<Product[]>('/products', token, { refreshInterval: 30000 });
 
