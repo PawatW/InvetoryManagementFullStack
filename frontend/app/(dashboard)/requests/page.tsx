@@ -425,10 +425,13 @@ export default function RequestsPage() {
 
   useEffect(() => {
     if (!token || !isWarehouseModalOpen) {
+      console.log('Batch fetch useEffect skipped: No token or modal closed.');
       return;
     }
     const productIds = Array.from(new Set(warehouseActiveItems.map((item) => item.productId)));
+    console.log('Product IDs to check batches for:', productIds);
     if (productIds.length === 0) {
+      console.log('Batch fetch useEffect skipped: No product IDs found in active items.');
       return;
     }
 
@@ -436,12 +439,16 @@ export default function RequestsPage() {
       const entry = warehouseBatchState[productId];
       return !entry || (!entry.isLoading && !entry.fetched);
     });
+    console.log('Product IDs needing batch fetch:', targets);
 
     if (targets.length === 0) {
+      console.log('Batch fetch useEffect skipped: All target product batches already fetched or loading.');
       return;
     }
 
     let cancelled = false;
+
+    console.log('Starting batch fetch for targets:', targets);
 
     targets.forEach((productId) => {
       setWarehouseBatchState((prev) => ({
@@ -458,6 +465,7 @@ export default function RequestsPage() {
         try {
           const batches = await apiFetch<ProductBatch[]>(`/products/${productId}/available-batches`, { token });
           if (!cancelled) {
+            console.log(`API Success for ${productId}:`, batches);
             setWarehouseBatchState((prev) => ({
               ...prev,
               [productId]: {
@@ -470,6 +478,7 @@ export default function RequestsPage() {
           }
         } catch (err) {
           if (!cancelled) {
+            console.error(`API Error for ${productId}:`, err);
             setWarehouseBatchState((prev) => ({
               ...prev,
               [productId]: {
@@ -487,9 +496,10 @@ export default function RequestsPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, isWarehouseModalOpen, warehouseActiveItems, warehouseBatchState]);
+  }, [token, isWarehouseModalOpen, warehouseActiveItems]);
 
   useEffect(() => {
+    console.log('Batch fetch useEffect triggered. Modal open:', isWarehouseModalOpen, 'Token:', !!token);
     if (!token || !isWarehouseModalOpen || !warehouseModalRequestId) {
       if (!isWarehouseModalOpen) {
         setRequestTransactions([]);
