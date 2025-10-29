@@ -77,6 +77,13 @@ export default function StockPage() {
     return map;
   }, [suppliers]);
 
+  const getSupplierDisplay = (supplierId: string | null | undefined) => {
+    if (!supplierId) {
+      return 'ไม่ระบุ Supplier';
+    }
+    return supplierNameMap.get(supplierId) ?? supplierId;
+  };
+
   const sortedPendingOrders = useMemo(() => {
     const list = pendingPurchaseOrders ?? [];
     return [...list].sort((a, b) => {
@@ -521,7 +528,7 @@ export default function StockPage() {
                               <tr key={order.poId} className="hover:bg-slate-50">
                                 <td className="px-4 py-3 font-mono text-xs text-slate-500">{order.poId}</td>
                                 <td className="px-4 py-3 text-sm text-slate-600">
-                                  {supplierNameMap.get(order.supplierId) ?? order.supplierId}
+                                  {getSupplierDisplay(order.supplierId)}
                                 </td>
                                 <td className="px-4 py-3 text-sm text-slate-500">
                                   {order.poDate ? format(new Date(order.poDate), 'dd MMM yyyy HH:mm') : '-'}
@@ -632,7 +639,7 @@ export default function StockPage() {
                       <div>
                         <h2 className="text-lg font-semibold text-slate-900">ยืนยันการรับสินค้าเข้าคลัง</h2>
                         <p className="text-sm text-slate-500">
-                          {receivingOrder.poId} • Supplier: {receivingOrder.supplierId}
+                          {receivingOrder.poId} • Supplier: {getSupplierDisplay(receivingOrder.supplierId)}
                         </p>
                       </div>
                       <button

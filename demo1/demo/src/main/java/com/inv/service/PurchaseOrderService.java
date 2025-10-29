@@ -56,9 +56,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrder createPurchaseOrder(PurchaseOrder order) {
-        if (order.getSupplierId() == null || order.getSupplierId().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ต้องระบุ Supplier สำหรับใบสั่งซื้อ");
-        }
+        order.setSupplierId(trimToNull(order.getSupplierId()));
         if (order.getItems() == null || order.getItems().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ต้องมีรายการสินค้าอย่างน้อย 1 รายการ");
         }

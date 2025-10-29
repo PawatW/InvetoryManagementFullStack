@@ -115,7 +115,7 @@ export interface PurchaseItem {
 export interface PurchaseOrder {
   poId: string;
   poDate: string;
-  supplierId: string;
+  supplierId: string | null;
   staffId?: string;
   totalAmount?: number;
   status: string;
