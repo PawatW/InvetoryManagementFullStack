@@ -27,6 +27,7 @@ public class PurchaseOrderRepository {
         order.setStaffId(rs.getString("staff_id"));
         order.setTotalAmount(rs.getBigDecimal("total_amount"));
         order.setStatus(rs.getString("status"));
+        order.setSlipUrl(rs.getString("slip_url"));
         return order;
     }
 
@@ -41,18 +42,18 @@ public class PurchaseOrderRepository {
     }
 
     public List<PurchaseOrder> findAll() {
-        String sql = "SELECT po_id, po_date, supplier_id, staff_id, total_amount, status FROM PurchaseOrder ORDER BY po_date DESC";
+        String sql = "SELECT po_id, po_date, supplier_id, staff_id, total_amount, status, slip_url FROM PurchaseOrder ORDER BY po_date DESC";
         return jdbcTemplate.query(sql, this::mapRow);
     }
 
     public List<PurchaseOrder> findByStatus(String status) {
-        String sql = "SELECT po_id, po_date, supplier_id, staff_id, total_amount, status FROM PurchaseOrder WHERE status = ? ORDER BY po_date DESC";
+        String sql = "SELECT po_id, po_date, supplier_id, staff_id, total_amount, status, slip_url FROM PurchaseOrder WHERE status = ? ORDER BY po_date DESC";
         return jdbcTemplate.query(sql, this::mapRow, status);
     }
 
     public PurchaseOrder findById(String poId) {
         List<PurchaseOrder> list = jdbcTemplate.query(
-                "SELECT po_id, po_date, supplier_id, staff_id, total_amount, status FROM PurchaseOrder WHERE po_id = ?",
+                "SELECT po_id, po_date, supplier_id, staff_id, total_amount, status, slip_url FROM PurchaseOrder WHERE po_id = ?",
                 this::mapRow,
                 poId
         );
@@ -75,13 +76,14 @@ public class PurchaseOrderRepository {
 
     public void save(PurchaseOrder order) {
         jdbcTemplate.update(
-                "INSERT INTO PurchaseOrder(po_id, po_date, supplier_id, staff_id, total_amount, status) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO PurchaseOrder(po_id, po_date, supplier_id, staff_id, total_amount, status, slip_url) VALUES (?,?,?,?,?,?,?)",
                 order.getPoId(),
                 order.getPoDate() != null ? Timestamp.valueOf(order.getPoDate()) : null,
                 order.getSupplierId(),
                 order.getStaffId(),
                 order.getTotalAmount(),
-                order.getStatus()
+                order.getStatus(),
+                order.getSlipUrl()
         );
         if (order.getItems() != null) {
             addItems(order.getPoId(), order.getItems());
@@ -110,6 +112,10 @@ public class PurchaseOrderRepository {
 
     public void updateTotalAmount(String poId, java.math.BigDecimal totalAmount) {
         jdbcTemplate.update("UPDATE PurchaseOrder SET total_amount = ? WHERE po_id = ?", totalAmount, poId);
+    }
+
+    public void updateSlipUrl(String poId, String slipUrl) {
+        jdbcTemplate.update("UPDATE PurchaseOrder SET slip_url = ? WHERE po_id = ?", slipUrl, poId);
     }
 
     public void updateItemCost(String poItemId, java.math.BigDecimal unitPrice) {

@@ -1,9 +1,9 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
-import { apiFetch } from '../../../lib/api';
+import { apiFetch, uploadPurchaseOrderSlip } from '../../../lib/api';
 import { useAuthedSWR } from '../../../lib/swr';
 import type { Product, PurchaseItem, PurchaseOrder, Supplier, ProductBatch } from '../../../lib/types';
 import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
@@ -48,12 +48,16 @@ export default function PurchaseOrdersPage() {
   const [pricingOrder, setPricingOrder] = useState<PurchaseOrder | null>(null);
   const [receivingOrder, setReceivingOrder] = useState<PurchaseOrder | null>(null);
   const [pricingItems, setPricingItems] = useState<EditableItem[]>([]);
+  const [pricingSlipUrl, setPricingSlipUrl] = useState('');
+  const [pricingSlipUploading, setPricingSlipUploading] = useState(false);
+  const [pricingSlipPreviewError, setPricingSlipPreviewError] = useState(false);
   const [receivingItems, setReceivingItems] = useState<EditableItem[]>([]);
   const [detailOrder, setDetailOrder] = useState<PurchaseOrder | null>(null);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
   const [detailBatches, setDetailBatches] = useState<ProductBatch[]>([]);
   const [isDetailBatchesLoading, setDetailBatchesLoading] = useState(false);
   const [detailBatchesError, setDetailBatchesError] = useState<string | null>(null);
+  const [detailSlipError, setDetailSlipError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -233,6 +237,7 @@ export default function PurchaseOrdersPage() {
     setSuccessMessage(null);
     setDetailBatches([]);
     setDetailBatchesError(null);
+    setDetailSlipError(false);
     try {
       const detail = await apiFetch<PurchaseOrder>(`/purchase-orders/${orderId}`, { token });
       setDetailOrder(detail);
@@ -260,6 +265,7 @@ export default function PurchaseOrdersPage() {
     setDetailBatches([]);
     setDetailBatchesError(null);
     setDetailBatchesLoading(false);
+    setDetailSlipError(false);
   };
 
   const handleOpenPricing = async (orderId: string) => {
@@ -267,6 +273,8 @@ export default function PurchaseOrdersPage() {
     setIsLoadingDetail(true);
     setError(null);
     setSuccessMessage(null);
+    setPricingSlipUploading(false);
+    setPricingSlipPreviewError(false);
     try {
       const detail = await apiFetch<PurchaseOrder>(`/purchase-orders/${orderId}`, { token });
       setPricingOrder(detail);
@@ -277,6 +285,7 @@ export default function PurchaseOrdersPage() {
             item.unitPrice !== undefined && item.unitPrice !== null ? String(item.unitPrice) : ''
         }))
       );
+      setPricingSlipUrl(detail.slipUrl ?? '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลใบสั่งซื้อได้');
     } finally {
@@ -310,6 +319,31 @@ export default function PurchaseOrdersPage() {
   const handleClosePricing = () => {
     setPricingOrder(null);
     setPricingItems([]);
+    setPricingSlipUrl('');
+    setPricingSlipUploading(false);
+    setPricingSlipPreviewError(false);
+  };
+
+  const handlePricingSlipChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!token) return;
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    setPricingSlipUploading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const uploadResult = await uploadPurchaseOrderSlip(file, token);
+      setPricingSlipUrl(uploadResult.url);
+      setPricingSlipPreviewError(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถอัปโหลดสลิปได้');
+      setPricingSlipUrl('');
+    } finally {
+      setPricingSlipUploading(false);
+      event.target.value = '';
+    }
   };
 
   const handleCloseReceiving = () => {
@@ -320,6 +354,14 @@ export default function PurchaseOrdersPage() {
   const handleSubmitPricing = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token || !pricingOrder) return;
+    if (pricingSlipUploading) {
+      setError('กรุณารอให้อัปโหลดสลิปเสร็จสิ้นก่อนบันทึก');
+      return;
+    }
+    if (!pricingSlipUrl) {
+      setError('กรุณาอัปโหลดสลิปยืนยันราคาก่อนบันทึก');
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     setSuccessMessage(null);
@@ -345,7 +387,7 @@ export default function PurchaseOrdersPage() {
       await apiFetch<PurchaseOrder>(`/purchase-orders/${pricingOrder.poId}/pricing`, {
         method: 'PUT',
         token,
-        body: JSON.stringify({ items: payloadItems, reject: false })
+        body: JSON.stringify({ items: payloadItems, reject: false, slipUrl: pricingSlipUrl })
       });
 
       setSuccessMessage('บันทึกราคาทุนสำหรับใบสั่งซื้อแล้ว');
@@ -591,6 +633,35 @@ export default function PurchaseOrdersPage() {
                   <p>{detailOrder.staffId || '-'}</p>
                 </div>
               </div>
+              {detailOrder.slipUrl && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-800">หลักฐานการเสนอราคา</h3>
+                    <a
+                      href={detailOrder.slipUrl ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-primary-600 hover:underline"
+                    >
+                      เปิดในแท็บใหม่
+                    </a>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    {detailSlipError ? (
+                      <div className="p-4 text-xs text-slate-500">
+                        ไม่สามารถแสดงรูปหลักฐานได้ กรุณาเปิดลิงก์ด้านบนเพื่อดูไฟล์
+                      </div>
+                    ) : (
+                      <img
+                        src={detailOrder.slipUrl ?? undefined}
+                        alt="หลักฐานการเสนอราคา"
+                        className="max-h-72 w-full object-contain"
+                        onError={() => setDetailSlipError(true)}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-800">รายการสินค้า</h3>
@@ -867,6 +938,60 @@ export default function PurchaseOrdersPage() {
                     </div>
                   ))}
                 </div>
+                <div className="space-y-3 rounded-2xl border border-dashed border-slate-300 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">หลักฐานการเสนอราคา (สลิป)</p>
+                      <p className="text-xs text-slate-400">อัปโหลดสลิปหรือรูปใบเสนอราคาก่อนยืนยัน</p>
+                    </div>
+                    {pricingSlipUrl && (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        onClick={() => {
+                          setPricingSlipUrl('');
+                          setPricingSlipPreviewError(false);
+                        }}
+                        disabled={pricingSlipUploading || isSubmitting}
+                      >
+                        ล้างไฟล์
+                      </button>
+                    )}
+                  </div>
+                  {pricingSlipUrl && (
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                      {pricingSlipPreviewError ? (
+                        <div className="p-3 text-xs text-slate-500">
+                          ไม่สามารถแสดงตัวอย่างภาพได้{' '}
+                          <a
+                            href={pricingSlipUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-primary-600 hover:underline"
+                          >
+                            เปิดลิงก์
+                          </a>
+                        </div>
+                      ) : (
+                        <img
+                          src={pricingSlipUrl}
+                          alt="หลักฐานการเสนอราคา"
+                          className="max-h-64 w-full bg-white object-contain"
+                          onError={() => setPricingSlipPreviewError(true)}
+                        />
+                      )}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePricingSlipChange}
+                    disabled={pricingSlipUploading || isSubmitting}
+                  />
+                  <p className="text-xs text-slate-400">
+                    {pricingSlipUploading ? 'กำลังอัปโหลดไฟล์...' : 'ไฟล์จะถูกบันทึกและแสดงในรายละเอียดใบสั่งซื้อ'}
+                  </p>
+                </div>
                 <div className="flex flex-col gap-3 md:flex-row md:justify-end">
                   <button
                     type="button"
@@ -878,7 +1003,7 @@ export default function PurchaseOrdersPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || pricingSlipUploading}
                     className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกราคาทุน'}

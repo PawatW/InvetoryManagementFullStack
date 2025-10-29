@@ -3,12 +3,15 @@ package com.inv.controller;
 import com.inv.model.ProductBatch;
 import com.inv.model.PurchaseItem;
 import com.inv.model.PurchaseOrder;
+import com.inv.service.ImageService;
 import com.inv.service.PurchaseOrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/purchase-orders")
@@ -16,6 +19,9 @@ public class PurchaseOrderController {
 
     @Autowired
     private PurchaseOrderService purchaseOrderService;
+
+    @Autowired
+    private ImageService imageService;
 
     @GetMapping
     public List<PurchaseOrder> getPurchaseOrders(@RequestParam(required = false) String status) {
@@ -33,11 +39,11 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(order);
     }
 
-    public record PricingRequest(List<PurchaseItem> items, boolean reject) {}
+    public record PricingRequest(List<PurchaseItem> items, boolean reject, String slipUrl) {}
 
     @PutMapping("/{id}/pricing")
     public ResponseEntity<PurchaseOrder> updatePricing(@PathVariable("id") String poId, @RequestBody PricingRequest request) {
-        PurchaseOrder order = purchaseOrderService.updatePricing(poId, request.items(), request.reject());
+        PurchaseOrder order = purchaseOrderService.updatePricing(poId, request.items(), request.reject(), request.slipUrl());
         return ResponseEntity.ok(order);
     }
 
@@ -52,5 +58,11 @@ public class PurchaseOrderController {
     @GetMapping("/{id}/batches")
     public List<ProductBatch> getPurchaseOrderBatches(@PathVariable("id") String poId) {
         return purchaseOrderService.getBatchesForPurchaseOrder(poId);
+    }
+
+    @PostMapping("/upload-slip")
+    public ResponseEntity<Map<String, String>> uploadSlip(@RequestParam("file") MultipartFile file) {
+        String url = imageService.uploadPurchaseOrderSlip(file);
+        return ResponseEntity.ok(Map.of("url", url));
     }
 }

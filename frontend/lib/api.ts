@@ -78,6 +78,28 @@ export async function uploadProductImage(
   return (await response.json()) as { url: string };
 }
 
+export async function uploadPurchaseOrderSlip(
+  file: File,
+  token: string
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/purchase-orders/upload-slip`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw await buildApiError(response);
+  }
+
+  return (await response.json()) as { url: string };
+}
+
 export interface PagedResult<T> {
   items: T[];
   total: number;

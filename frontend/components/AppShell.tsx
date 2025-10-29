@@ -18,7 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: '/inventory',
     label: 'Inventory',
-    roles: ['WAREHOUSE', 'ADMIN', 'SALES'],
+    roles: ['WAREHOUSE', 'ADMIN', 'SALES', 'PROCUREMENT'],
     labelByRole: { SALES: 'Products' }
   },
   { href: '/orders', label: 'Orders', roles: ['SALES', 'TECHNICIAN', 'ADMIN'] },

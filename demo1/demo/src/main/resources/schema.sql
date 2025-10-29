@@ -112,7 +112,8 @@ CREATE TABLE IF NOT EXISTS PurchaseOrder (
     supplier_id VARCHAR(20) REFERENCES Supplier(supplier_id),
     staff_id VARCHAR(20) REFERENCES Staff(staff_id),
     total_amount DECIMAL(12,2) DEFAULT 0,
-    status VARCHAR(50) DEFAULT 'New order'
+    status VARCHAR(50) DEFAULT 'New order',
+    slip_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS PurchaseItem (

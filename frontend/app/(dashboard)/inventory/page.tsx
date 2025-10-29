@@ -8,7 +8,7 @@ import { apiFetch, uploadProductImage } from '../../../lib/api';
 import type { Product, Supplier, ProductBatch } from '../../../lib/types';
 import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
 export default function InventoryPage() {
-  const { token, role } = useAuth();
+  const { token, role, staffId } = useAuth();
   const [filter, setFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -31,6 +31,8 @@ export default function InventoryPage() {
   const [priceEditProduct, setPriceEditProduct] = useState<Product | null>(null);
   const [isPriceModalOpen, setPriceModalOpen] = useState(false);
   const [isPriceSubmitting, setIsPriceSubmitting] = useState(false);
+  const [initialQuantity, setInitialQuantity] = useState<number>(0);
+  const [initialCostInput, setInitialCostInput] = useState('');
 
   useEffect(() => {
     setDetailImageError(false);
@@ -40,10 +42,17 @@ export default function InventoryPage() {
     setEditImageError(false);
   }, [productToEdit]);
 
-  const canManage = role === 'WAREHOUSE';
+  useEffect(() => {
+    if (initialQuantity <= 1) {
+      setInitialCostInput('');
+    }
+  }, [initialQuantity]);
+
+  const canManage = role === 'WAREHOUSE' || role === 'PROCUREMENT' || role === 'ADMIN';
   const canEditSellPrice = role === 'SALES' || role === 'ADMIN';
   const canCreateCustomers = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
   const canCreateOrders = role === 'SALES' || role === 'TECHNICIAN' || role === 'ADMIN';
+  const isInitialCostEnabled = initialQuantity > 1;
   const { data: suppliers } = useAuthedSWR<Supplier[]>(canManage ? '/suppliers' : null, token);
   const { data: products, mutate, isLoading } = useAuthedSWR<Product[]>('/products', token, { refreshInterval: 30000 });
 
@@ -286,6 +295,31 @@ export default function InventoryPage() {
     const productName = String(formData.get('productName') ?? '').trim();
     const description = String(formData.get('description') ?? '').trim();
     const unit = String(formData.get('unit') ?? '').trim();
+    const quantityRaw = String(formData.get('quantity') ?? '').trim();
+    const quantityValue = quantityRaw ? Math.floor(Number(quantityRaw)) : 0;
+    const costRaw = String(formData.get('initialCost') ?? '').trim();
+
+    if (!Number.isFinite(quantityValue) || quantityValue < 0) {
+      setError('จำนวนเริ่มต้นต้องไม่ติดลบ');
+      return;
+    }
+
+    if (quantityValue > 1) {
+      if (!costRaw) {
+        setError('กรุณาระบุราคาทุนเริ่มต้นเมื่อมีจำนวนมากกว่า 1 หน่วย');
+        return;
+      }
+      const costValue = Number(costRaw);
+      if (!Number.isFinite(costValue) || costValue <= 0) {
+        setError('ราคาทุนเริ่มต้นต้องมากกว่า 0');
+        return;
+      }
+    }
+
+    if (!staffId) {
+      setError('ไม่พบรหัสพนักงานผู้บันทึกสินค้าใหม่');
+      return;
+    }
 
     if (!productName) {
       setError('กรุณากรอกชื่อสินค้า');
@@ -312,15 +346,18 @@ export default function InventoryPage() {
       }
     }
 
+    const initialCostValue = quantityValue > 1 ? Number(costRaw) : 0;
+
     const payload = {
       productName,
       description: description || undefined,
       unit: unit || undefined,
       supplierId: selectedSupplierId,
-      costPrice: 0,
+      costPrice: initialCostValue || 0,
       sellPrice: 0,
-      quantity: 0,
-      imageUrl: uploadedImageUrl
+      quantity: quantityValue,
+      imageUrl: uploadedImageUrl,
+      createdByStaffId: staffId
     };
 
     try {
@@ -333,6 +370,8 @@ export default function InventoryPage() {
       setCreateModalOpen(false);
       setFormResetKey((prev) => prev + 1);
       setSelectedSupplierId('');
+      setInitialQuantity(0);
+      setInitialCostInput('');
       mutate();
       setSuccessMessage('เพิ่มสินค้าเรียบร้อย');
     } catch (err) {
@@ -371,6 +410,8 @@ export default function InventoryPage() {
                     setError(null);
                     setSuccessMessage(null);
                     setSelectedSupplierId('');
+                    setInitialQuantity(0);
+                    setInitialCostInput('');
                     setCreateModalOpen(true);
                     setFormResetKey((prev) => prev + 1);
                   }}
@@ -485,11 +526,13 @@ export default function InventoryPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setCreateModalOpen(false);
-                      setSelectedSupplierId('');
-                      setFormResetKey((prev) => prev + 1);
-                    }}
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    setSelectedSupplierId('');
+                    setInitialQuantity(0);
+                    setInitialCostInput('');
+                    setFormResetKey((prev) => prev + 1);
+                  }}
                     className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
                   >
                     ปิด
@@ -505,12 +548,45 @@ export default function InventoryPage() {
                       <label className="block text-xs font-medium text-slate-500">หน่วย</label>
                       <input name="unit" placeholder="ม้วน / ชิ้น / กล่อง" />
                     </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-slate-500">จำนวนเริ่มต้น</label>
+                      <input
+                        name="quantity"
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={initialQuantity}
+                        onChange={(event) => {
+                          const nextValue = Number(event.target.value);
+                          if (Number.isNaN(nextValue)) {
+                            setInitialQuantity(0);
+                            return;
+                          }
+                          setInitialQuantity(Math.max(0, Math.floor(nextValue)));
+                        }}
+                      />
+                      <p className="text-xs text-slate-400">สามารถปล่อยเป็น 0 เพื่อเพิ่มสต็อกภายหลังได้</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-slate-500">ราคาทุนเริ่มต้น (ต่อหน่วย)</label>
+                      <input
+                        name="initialCost"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={initialCostInput}
+                        onChange={(event) => setInitialCostInput(event.target.value)}
+                        disabled={!isInitialCostEnabled}
+                        className="disabled:cursor-not-allowed disabled:bg-slate-100"
+                      />
+                      <p className="text-xs text-slate-400">จำเป็นเมื่อจำนวนมากกว่า 1 หน่วย</p>
+                    </div>
                     <div className="space-y-2 md:col-span-2">
                       <label className="block text-xs font-medium text-slate-500">คำอธิบาย</label>
                       <textarea name="description" rows={3} placeholder="ระบุรายละเอียดสินค้าเพิ่มเติม" />
                     </div>
                     <p className="md:col-span-2 text-xs text-slate-400">
-                      ระบบจะตั้งจำนวนคงเหลือและราคาทุนเริ่มต้นเป็น 0 คุณสามารถปรับปรุงได้ผ่านการรับสินค้าเข้าคลัง
+                      หากจำนวนมากกว่า 1 หน่วย ระบบจะเปิดให้กรอกราคาทุนและบันทึกธุรกรรม Stock-in ให้โดยอัตโนมัติ
                     </p>
                     <div className="space-y-2">
                       <label className="block text-xs font-medium text-slate-500">Supplier</label>
@@ -544,6 +620,8 @@ export default function InventoryPage() {
                       onClick={() => {
                         setCreateModalOpen(false);
                         setSelectedSupplierId('');
+                        setInitialQuantity(0);
+                        setInitialCostInput('');
                         setFormResetKey((prev) => prev + 1);
                       }}
                       className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50"

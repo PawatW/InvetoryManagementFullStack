@@ -120,5 +120,6 @@ export interface PurchaseOrder {
   totalAmount?: number;
   status: string;
   items?: PurchaseItem[];
+  slipUrl?: string | null;
 }
 

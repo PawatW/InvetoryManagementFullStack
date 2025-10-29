@@ -92,8 +92,9 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/orders").hasAnyRole("SALES", "ADMIN")
                         // อนุญาตให้ warehouse สร้างสินค้าได้
-                        .requestMatchers(HttpMethod.POST, "/products").hasAnyRole("WAREHOUSE","ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/products/upload-image").hasAnyRole("WAREHOUSE","ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/products").hasAnyRole("WAREHOUSE","ADMIN","PROCUREMENT")
+                        .requestMatchers(HttpMethod.POST, "/products/upload-image").hasAnyRole("WAREHOUSE","ADMIN","PROCUREMENT")
+                        .requestMatchers(HttpMethod.POST, "/purchase-orders/upload-slip").hasAnyRole("PROCUREMENT","ADMIN")
                         // อนุญาตให้ทุกคนที่ login แล้วดึงข้อมูล Category ได้
                         .requestMatchers(HttpMethod.GET, "/categories").authenticated()
 
