@@ -59,7 +59,6 @@ export default function PurchaseOrdersPage() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [createFormKey, setCreateFormKey] = useState(0);
-  const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [draftItems, setDraftItems] = useState<DraftPurchaseItem[]>([createDraftItem()]);
   const [isCreateSubmitting, setIsCreateSubmitting] = useState(false);
 
@@ -76,21 +75,6 @@ export default function PurchaseOrdersPage() {
     );
   }
 
-  const supplierOptions = useMemo<SearchableOption[]>(() => {
-    return (suppliers ?? []).map((supplier) => ({
-      value: supplier.supplierId,
-      label: `${supplier.supplierName} (${supplier.supplierId})`,
-      description: supplier.phone ? `โทร: ${supplier.phone}` : supplier.email ? `อีเมล: ${supplier.email}` : undefined,
-      keywords: [
-        supplier.supplierName,
-        supplier.supplierId,
-        supplier.phone ?? '',
-        supplier.email ?? '',
-        supplier.address ?? ''
-      ]
-    }));
-  }, [suppliers]);
-
   const supplierNameMap = useMemo(() => {
     const map = new Map<string, string>();
     (suppliers ?? []).forEach((supplier) => {
@@ -98,6 +82,13 @@ export default function PurchaseOrdersPage() {
     });
     return map;
   }, [suppliers]);
+
+  const getSupplierDisplay = (supplierId: string | null | undefined) => {
+    if (!supplierId) {
+      return 'ไม่ระบุ Supplier';
+    }
+    return supplierNameMap.get(supplierId) ?? supplierId;
+  };
 
   const productOptions = useMemo<SearchableOption[]>(() => {
     return (products ?? []).map((product) => ({
@@ -122,7 +113,6 @@ export default function PurchaseOrdersPage() {
 
   const resetCreateForm = () => {
     setDraftItems([createDraftItem()]);
-    setSelectedSupplierId('');
     setCreateFormKey((prev) => prev + 1);
   };
 
@@ -166,12 +156,6 @@ export default function PurchaseOrdersPage() {
       return;
     }
 
-    const trimmedSupplier = selectedSupplierId.trim();
-    if (!trimmedSupplier) {
-      setError('กรุณาเลือก Supplier สำหรับใบสั่งซื้อ');
-      return;
-    }
-
     const sanitizedItems = draftItems
       .map((item) => ({
         productId: item.productId.trim(),
@@ -197,11 +181,11 @@ export default function PurchaseOrdersPage() {
 
     try {
       const payload: {
-        supplierId: string;
+        supplierId: string | null;
         staffId: string;
         items: { productId: string; quantity: number }[];
       } = {
-        supplierId: trimmedSupplier,
+        supplierId: null,
         staffId,
         items: sanitizedItems.map((item) => ({
           productId: item.productId,
@@ -522,7 +506,7 @@ export default function PurchaseOrdersPage() {
                 <tr key={order.poId} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">{order.poId}</td>
                   <td className="px-4 py-3 text-sm text-slate-600">
-                    {supplierNameMap.get(order.supplierId) ?? order.supplierId}
+                    {getSupplierDisplay(order.supplierId)}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-500">
                     {order.poDate ? format(new Date(order.poDate), 'dd MMM yyyy HH:mm') : '-'}
@@ -593,7 +577,7 @@ export default function PurchaseOrdersPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase text-slate-400">Supplier</p>
                   <p className="font-medium text-slate-800">
-                    {supplierNameMap.get(detailOrder.supplierId) ?? detailOrder.supplierId}
+                    {getSupplierDisplay(detailOrder.supplierId)}
                   </p>
                 </div>
                 <div>
@@ -701,7 +685,7 @@ export default function PurchaseOrdersPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">สร้างใบสั่งซื้อใหม่</h2>
-                  <p className="text-sm text-slate-500">เลือก Supplier และสินค้าที่ต้องการสั่งซื้อ</p>
+                  <p className="text-sm text-slate-500">เลือกสินค้าที่ต้องการสั่งซื้อ</p>
                 </div>
                 <button
                   type="button"
@@ -714,24 +698,6 @@ export default function PurchaseOrdersPage() {
                 </button>
               </div>
               <form key={createFormKey} onSubmit={handleSubmitCreate} className="mt-6 space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-500">Supplier</label>
-                  <SearchableSelect
-                    key={`supplier-${createFormKey}`}
-                    name="supplierId"
-                    value={selectedSupplierId}
-                    onChange={setSelectedSupplierId}
-                    options={[{ value: '', label: 'เลือก Supplier' }, ...supplierOptions]}
-                    placeholder="เลือก Supplier"
-                    searchPlaceholder="ค้นหา Supplier..."
-                    emptyMessage="ไม่พบ Supplier"
-                    disabled={supplierOptions.length === 0}
-                    required
-                  />
-                  {supplierOptions.length === 0 && (
-                    <p className="text-xs text-rose-500">ยังไม่มีข้อมูล Supplier ที่ใช้งานอยู่</p>
-                  )}
-                </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-700">รายการสินค้า</h3>
@@ -818,7 +784,9 @@ export default function PurchaseOrdersPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">ยืนยันการจัดซื้อ</h2>
-                  <p className="text-sm text-slate-500">{pricingOrder.poId} • Supplier: {pricingOrder.supplierId}</p>
+                  <p className="text-sm text-slate-500">
+                    {pricingOrder.poId} • Supplier: {getSupplierDisplay(pricingOrder.supplierId)}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -946,7 +914,9 @@ export default function PurchaseOrdersPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">ยืนยันการรับสินค้าเข้าคลัง</h2>
-                  <p className="text-sm text-slate-500">{receivingOrder.poId} • Supplier: {receivingOrder.supplierId}</p>
+                  <p className="text-sm text-slate-500">
+                    {receivingOrder.poId} • Supplier: {getSupplierDisplay(receivingOrder.supplierId)}
+                  </p>
                 </div>
                 <button
                   type="button"
