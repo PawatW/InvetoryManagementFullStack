@@ -817,7 +817,7 @@ export default function PurchaseOrdersPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">กำหนดราคาทุน</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">ยืนยันการจัดซื้อ</h2>
                   <p className="text-sm text-slate-500">{pricingOrder.poId} • Supplier: {pricingOrder.supplierId}</p>
                 </div>
                 <button
@@ -930,7 +930,7 @@ export default function PurchaseOrdersPage() {
                     disabled={isSubmitting || pricingSlipUploading}
                     className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกราคาทุน'}
+                    {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกการจัดซื้อ'}
                   </button>
                 </div>
               </form>
