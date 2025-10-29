@@ -99,6 +99,7 @@ export default function RequestsPage() {
   const [warehouseBatchState, setWarehouseBatchState] = useState<
     Record<string, { batches: ProductBatch[]; isLoading: boolean; error: string | null; fetched: boolean }>
   >({});
+  const warehouseBatchStateRef = useRef(warehouseBatchState);
   const [requestTransactions, setRequestTransactions] = useState<StockTransaction[]>([]);
   const [isRequestTransactionsLoading, setRequestTransactionsLoading] = useState(false);
   const [requestTransactionsError, setRequestTransactionsError] = useState<string | null>(null);
@@ -424,6 +425,10 @@ export default function RequestsPage() {
   }, [isWarehouseModalOpen, warehouseModalRequestId]);
 
   useEffect(() => {
+    warehouseBatchStateRef.current = warehouseBatchState;
+  }, [warehouseBatchState]);
+
+  useEffect(() => {
     if (!token || !isWarehouseModalOpen) {
       console.log('Batch fetch useEffect skipped: No token or modal closed.');
       return;
@@ -435,8 +440,9 @@ export default function RequestsPage() {
       return;
     }
 
+    const currentState = warehouseBatchStateRef.current;
     const targets = productIds.filter((productId) => {
-      const entry = warehouseBatchState[productId];
+      const entry = currentState[productId];
       return !entry || (!entry.isLoading && !entry.fetched);
     });
     console.log('Product IDs needing batch fetch:', targets);
