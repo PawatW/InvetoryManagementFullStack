@@ -19,14 +19,28 @@ public class ImageService {
     private static final Logger logger = LoggerFactory.getLogger(ImageService.class);
 
     private final Cloudinary cloudinary;
-    private final String folder;
+    private final String productFolder;
+    private final String purchaseOrderFolder;
 
-    public ImageService(Cloudinary cloudinary, @Value("${cloudinary.folder:inventory/products}") String folder) {
+    public ImageService(
+            Cloudinary cloudinary,
+            @Value("${cloudinary.folder:inventory/products}") String productFolder,
+            @Value("${cloudinary.purchase-order-folder:inventory/purchase-orders}") String purchaseOrderFolder
+    ) {
         this.cloudinary = cloudinary;
-        this.folder = folder;
+        this.productFolder = productFolder;
+        this.purchaseOrderFolder = purchaseOrderFolder;
     }
 
     public String uploadProductImage(MultipartFile file) {
+        return uploadToFolder(file, productFolder);
+    }
+
+    public String uploadPurchaseOrderSlip(MultipartFile file) {
+        return uploadToFolder(file, purchaseOrderFolder);
+    }
+
+    private String uploadToFolder(MultipartFile file, String folder) {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาเลือกไฟล์รูปภาพที่ต้องการอัปโหลด");
         }

@@ -2,13 +2,17 @@ package com.inv.service;
 
 import com.inv.model.Product;
 import com.inv.model.ProductBatch;
+import com.inv.model.StockTransaction;
 import com.inv.repo.ProductRepository;
 import com.inv.repo.ProductBatchRepository;
+import com.inv.repo.StockTransactionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +24,9 @@ public class ProductService {
 
     @Autowired
     private ProductBatchRepository productBatchRepository;
+
+    @Autowired
+    private StockTransactionRepository stockTransactionRepository;
 
     public List<Product> getAllProducts() {
         return productRepository.findAll();
@@ -35,19 +42,67 @@ public class ProductService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาระบุชื่อสินค้า (Product name is required)");
         }
 
+        int initialQuantity = Math.max(product.getQuantity(), 0);
+        BigDecimal initialCost = product.getCostPrice() != null ? product.getCostPrice() : BigDecimal.ZERO;
+        if (initialQuantity > 1 && initialCost.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาระบุราคาทุนเริ่มต้นเมื่อมีการเพิ่มสต็อกมากกว่า 1 หน่วย");
+        }
+
         product.setProductId("PROD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         product.setProductName(name);
         product.setDescription(trimToNull(product.getDescription()));
         product.setUnit(trimToNull(product.getUnit()));
         product.setSupplierId(trimToNull(product.getSupplierId()));
         product.setImageUrl(trimToNull(product.getImageUrl()));
-        product.setQuantity(0);
-        product.setCostPrice(product.getCostPrice() != null ? product.getCostPrice() : java.math.BigDecimal.ZERO);
-        product.setSellPrice(product.getSellPrice() != null ? product.getSellPrice() : java.math.BigDecimal.ZERO);
+        product.setSellPrice(product.getSellPrice() != null ? product.getSellPrice() : BigDecimal.ZERO);
         product.setActive(true);
 
+        if (initialQuantity > 1) {
+            product.setQuantity(initialQuantity);
+            product.setCostPrice(initialCost.setScale(2, RoundingMode.HALF_UP));
+        } else if (initialQuantity == 1) {
+            product.setQuantity(1);
+            product.setCostPrice(BigDecimal.ZERO);
+        } else {
+            product.setQuantity(0);
+            product.setCostPrice(BigDecimal.ZERO);
+        }
+
         productRepository.save(product);
-        return product;
+
+        if (initialQuantity > 1) {
+            String staffId = trimToNull(product.getCreatedByStaffId());
+            if (staffId == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ต้องระบุผู้บันทึกเมื่อมีการเพิ่มสต็อกเริ่มต้น");
+            }
+            createInitialStockRecords(product, initialQuantity, product.getCostPrice(), staffId);
+        }
+
+        return productRepository.findById(product.getProductId());
+    }
+
+    private void createInitialStockRecords(Product product, int quantity, BigDecimal unitCost, String staffId) {
+        BigDecimal normalizedCost = unitCost.setScale(2, RoundingMode.HALF_UP);
+
+        ProductBatch batch = new ProductBatch();
+        batch.setBatchId("BATCH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        batch.setProductId(product.getProductId());
+        batch.setQuantityIn(quantity);
+        batch.setQuantityRemaining(quantity);
+        batch.setUnitCost(normalizedCost);
+        batch.setPoId(null);
+        productBatchRepository.save(batch);
+
+        StockTransaction transaction = new StockTransaction();
+        transaction.setTransactionId("ST-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        transaction.setType("IN");
+        transaction.setProductId(product.getProductId());
+        transaction.setQuantity(quantity);
+        transaction.setStaffId(staffId);
+        transaction.setBatchId(batch.getBatchId());
+        transaction.setReferenceId(null);
+        transaction.setDescription("Initial stock recorded on product creation");
+        stockTransactionRepository.save(transaction);
     }
 
     private String trimToNull(String value) {

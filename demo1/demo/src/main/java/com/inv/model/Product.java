@@ -13,6 +13,7 @@ public class Product {
     private int quantity;
     private String imageUrl;
     private boolean active;
+    private String createdByStaffId;
 
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
@@ -43,5 +44,8 @@ public class Product {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public String getCreatedByStaffId() { return createdByStaffId; }
+    public void setCreatedByStaffId(String createdByStaffId) { this.createdByStaffId = createdByStaffId; }
 
 }

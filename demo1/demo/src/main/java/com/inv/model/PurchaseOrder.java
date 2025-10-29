@@ -12,6 +12,7 @@ public class PurchaseOrder {
     private BigDecimal totalAmount;
     private String status;
     private List<PurchaseItem> items;
+    private String slipUrl;
 
     public String getPoId() {
         return poId;
@@ -67,5 +68,13 @@ public class PurchaseOrder {
 
     public void setItems(List<PurchaseItem> items) {
         this.items = items;
+    }
+
+    public String getSlipUrl() {
+        return slipUrl;
+    }
+
+    public void setSlipUrl(String slipUrl) {
+        this.slipUrl = slipUrl;
     }
 }

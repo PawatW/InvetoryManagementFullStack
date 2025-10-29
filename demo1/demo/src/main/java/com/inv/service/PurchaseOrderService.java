@@ -81,6 +81,7 @@ public class PurchaseOrderService {
         }
         order.setStatus(order.getStatus() != null ? order.getStatus() : "New order");
         order.setTotalAmount(order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO);
+        order.setSlipUrl(null);
 
         List<PurchaseItem> itemsWithId = new ArrayList<>();
         for (PurchaseItem item : order.getItems()) {
@@ -100,7 +101,7 @@ public class PurchaseOrderService {
     }
 
     @Transactional
-    public PurchaseOrder updatePricing(String poId, List<PurchaseItem> pricedItems, boolean reject) {
+    public PurchaseOrder updatePricing(String poId, List<PurchaseItem> pricedItems, boolean reject, String slipUrl) {
         PurchaseOrder existing = purchaseOrderRepository.findById(poId);
         if (existing == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบใบสั่งซื้อ");
@@ -108,10 +109,16 @@ public class PurchaseOrderService {
         if (reject) {
             purchaseOrderRepository.updateStatus(poId, "Rejected");
             existing.setStatus("Rejected");
+            purchaseOrderRepository.updateSlipUrl(poId, null);
+            existing.setSlipUrl(null);
             return existing;
         }
         if (pricedItems == null || pricedItems.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ต้องส่งข้อมูลราคาสำหรับทุกรายการ");
+        }
+        String normalizedSlip = trimToNull(slipUrl);
+        if (normalizedSlip == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาอัปโหลดหลักฐานราคาใบสั่งซื้อ");
         }
         BigDecimal total = BigDecimal.ZERO;
         for (PurchaseItem item : pricedItems) {
@@ -130,8 +137,10 @@ public class PurchaseOrderService {
         }
         purchaseOrderRepository.updateTotalAmount(poId, total);
         purchaseOrderRepository.updateStatus(poId, "Pending");
+        purchaseOrderRepository.updateSlipUrl(poId, normalizedSlip);
         existing.setStatus("Pending");
         existing.setTotalAmount(total);
+        existing.setSlipUrl(normalizedSlip);
         existing.setItems(purchaseOrderRepository.findItems(poId));
         return existing;
     }
@@ -223,5 +232,13 @@ public class PurchaseOrderService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบใบสั่งซื้อ");
         }
         return productBatchRepository.findByPurchaseOrder(poId);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
