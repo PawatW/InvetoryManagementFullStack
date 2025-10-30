@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useAuth } from '../../../components/AuthContext';
 import { apiFetch, uploadPurchaseOrderSlip } from '../../../lib/api';
@@ -61,6 +61,7 @@ export default function PurchaseOrdersPage() {
   const [createFormKey, setCreateFormKey] = useState(0);
   const [draftItems, setDraftItems] = useState<DraftPurchaseItem[]>([createDraftItem()]);
   const [isCreateSubmitting, setIsCreateSubmitting] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState('');
 
   const canCreate = role === 'WAREHOUSE' || role === 'ADMIN';
   const canPrice = role === 'PROCUREMENT' || role === 'ADMIN';
@@ -99,6 +100,39 @@ export default function PurchaseOrdersPage() {
     }));
   }, [products]);
 
+  const supplierOptions = useMemo<SearchableOption[]>(() => {
+    return (suppliers ?? []).map((supplier) => ({
+      value: supplier.supplierId,
+      label: `${supplier.supplierName} (${supplier.supplierId})`,
+      description: supplier.phone ? `โทร: ${supplier.phone}` : supplier.email ? `อีเมล: ${supplier.email}` : undefined,
+      keywords: [supplier.supplierName, supplier.supplierId, supplier.phone ?? '', supplier.email ?? '']
+    }));
+  }, [suppliers]);
+
+  const filteredProductOptions = useMemo(() => {
+    if (!selectedSupplierId) {
+      return [];
+    }
+    const supplierProductIds = new Set(
+      (products ?? [])
+        .filter((product) => product.supplierId === selectedSupplierId)
+        .map((product) => product.productId)
+    );
+    return productOptions.filter((option) => supplierProductIds.has(option.value));
+  }, [productOptions, products, selectedSupplierId]);
+
+  useEffect(() => {
+    setDraftItems((prev) =>
+      prev.map((item) => {
+        if (!item.productId) {
+          return item;
+        }
+        const stillAvailable = filteredProductOptions.some((option) => option.value === item.productId);
+        return stillAvailable ? item : { ...item, productId: '' };
+      })
+    );
+  }, [filteredProductOptions]);
+
   const productNameMap = useMemo(() => {
     const map = new Map<string, string>();
     (products ?? []).forEach((product) => {
@@ -114,6 +148,7 @@ export default function PurchaseOrdersPage() {
   const resetCreateForm = () => {
     setDraftItems([createDraftItem()]);
     setCreateFormKey((prev) => prev + 1);
+    setSelectedSupplierId('');
   };
 
   const handleOpenCreate = () => {
@@ -156,6 +191,11 @@ export default function PurchaseOrdersPage() {
       return;
     }
 
+    if (!selectedSupplierId) {
+      setError('กรุณาเลือก Supplier สำหรับใบสั่งซื้อ');
+      return;
+    }
+
     const sanitizedItems = draftItems
       .map((item) => ({
         productId: item.productId.trim(),
@@ -185,7 +225,7 @@ export default function PurchaseOrdersPage() {
         staffId: string;
         items: { productId: string; quantity: number }[];
       } = {
-        supplierId: null,
+        supplierId: selectedSupplierId,
         staffId,
         items: sanitizedItems.map((item) => ({
           productId: item.productId,
@@ -698,6 +738,23 @@ export default function PurchaseOrdersPage() {
                 </button>
               </div>
               <form key={createFormKey} onSubmit={handleSubmitCreate} className="mt-6 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500">Supplier</label>
+                  <SearchableSelect
+                    key={`${createFormKey}-supplier`}
+                    value={selectedSupplierId}
+                    onChange={(value) => setSelectedSupplierId(value)}
+                    options={[{ value: '', label: 'เลือก Supplier' }, ...supplierOptions]}
+                    placeholder="เลือก Supplier"
+                    searchPlaceholder="ค้นหา Supplier..."
+                    emptyMessage="ไม่พบ Supplier"
+                    disabled={supplierOptions.length === 0}
+                    required={supplierOptions.length > 0}
+                  />
+                  {supplierOptions.length === 0 && (
+                    <p className="text-xs text-rose-500">ยังไม่มีข้อมูล Supplier</p>
+                  )}
+                </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-700">รายการสินค้า</h3>
@@ -718,15 +775,21 @@ export default function PurchaseOrdersPage() {
                             key={`${item.key}-product`}
                             value={item.productId}
                             onChange={(value) => handleUpdateDraftItem(item.key, { productId: value })}
-                            options={[{ value: '', label: 'เลือกสินค้า' }, ...productOptions]}
+                            options={[{ value: '', label: 'เลือกสินค้า' }, ...filteredProductOptions]}
                             placeholder="เลือกสินค้า"
                             searchPlaceholder="ค้นหาสินค้า..."
                             emptyMessage="ไม่พบสินค้า"
-                            disabled={productOptions.length === 0}
+                            disabled={!selectedSupplierId || filteredProductOptions.length === 0}
                           />
-                          {productOptions.length === 0 && (
-                            <p className="text-xs text-rose-500">ยังไม่มีข้อมูลสินค้า</p>
-                          )}
+                          {!selectedSupplierId ? (
+                            <p className="text-xs text-slate-500">กรุณาเลือก Supplier ก่อน</p>
+                          ) : filteredProductOptions.length === 0 ? (
+                            productOptions.length === 0 ? (
+                              <p className="text-xs text-rose-500">ยังไม่มีข้อมูลสินค้า</p>
+                            ) : (
+                              <p className="text-xs text-rose-500">ไม่มีสินค้าสำหรับ Supplier นี้</p>
+                            )
+                          ) : null}
                         </div>
                         <div className="md:col-span-3 space-y-2">
                           <label className="text-xs font-medium text-slate-500">จำนวน</label>
