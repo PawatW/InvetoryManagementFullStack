@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { loginApi, getMeApi } from '../lib/auth/api';
+import { loginApi } from '../lib/auth/api';
 import { saveToken, loadToken, clearToken } from '../lib/auth/storage';
 import { decodeJwtPayload, isTokenExpired } from '../lib/auth';
 import type { Role } from '../lib/auth/types';
@@ -55,17 +55,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/');
   }, [router]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const data = await loginApi({ email, password });
-      saveToken(data.token);
-      setToken(data.token);
-      setStaffId(data.staffId);
-      setRole(normalizeRole(data.role));
-      router.push('/dashboard');
-    },
-    [router]
-  );
+  const login = useCallback(async (email: string, password: string) => {
+    const data = await loginApi({ email, password });
+    saveToken(data.token);
+    setToken(data.token);
+    setStaffId(data.staffId);
+    setRole(normalizeRole(data.role));
+    // Navigation is handled by the login page's useEffect after React commits
+    // these state updates — avoids race condition where dashboard sees stale state.
+  }, []);
 
   const value = useMemo(
     () => ({ token, staffId, role, loading, isAuthenticated: Boolean(token), login, logout }),
