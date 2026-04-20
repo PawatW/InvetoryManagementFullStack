@@ -65,9 +65,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/requests").hasRole("TECHNICIAN")
 
                         // Foreman endpoints
-                        .requestMatchers(HttpMethod.GET, "/requests/pending").hasRole("FOREMAN")
-                        .requestMatchers(HttpMethod.PUT, "/requests/{id}/approve").hasRole("FOREMAN")
-                        .requestMatchers(HttpMethod.PUT, "/requests/{id}/reject").hasRole("FOREMAN")
+                        .requestMatchers(HttpMethod.GET, "/requests/pending").hasAnyRole("FOREMAN", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/requests/{id}/approve").hasAnyRole("FOREMAN", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/requests/{id}/reject").hasAnyRole("FOREMAN", "ADMIN")
 
                         // Authenticated endpoints (สำหรับ role อื่นๆ หรือ role ร่วม)
                         .requestMatchers(HttpMethod.GET, "/orders/confirmed").hasAnyRole("TECHNICIAN", "ADMIN", "SALES")
