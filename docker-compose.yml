@@ -18,9 +18,9 @@ services:
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
 
       # === เพิ่ม 3 บรรทัดนี้สำหรับ Cloudinary ===
-      - CLOUDINARY_CLOUD_NAME=dxgrve6ep
-      - CLOUDINARY_API_KEY=359358717783139
-      - CLOUDINARY_API_SECRET=k_2WNBamXqo6JMbBjIjgalG1PHI
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       # ========================================
 
     depends_on:
