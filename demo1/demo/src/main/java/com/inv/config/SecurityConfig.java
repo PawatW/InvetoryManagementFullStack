@@ -32,6 +32,8 @@ public class SecurityConfig {
     @Autowired
     private AuthEntryPoint authEntryPoint;
 
+    // Set CORS_ALLOWED_ORIGINS on Render to comma-separated list, e.g.:
+    // https://your-app.vercel.app,https://your-app-git-branch.vercel.app
     @Value("${cors.allowed-origins:${CORS_ALLOWED_ORIGINS:http://localhost:3000}}")
     private String allowedOrigins;
 
