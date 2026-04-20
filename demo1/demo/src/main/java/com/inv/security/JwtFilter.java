@@ -42,10 +42,13 @@ public class JwtFilter extends OncePerRequestFilter {
                 String staffId = claims.getSubject();
                 String role = claims.get("role", String.class);
 
+                // Normalize: avoid ROLE_ROLE_FOREMAN if DB already stores "ROLE_FOREMAN"
+                String authority = (role != null && role.startsWith("ROLE_")) ? role : "ROLE_" + role;
+
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
                                 staffId, null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                                List.of(new SimpleGrantedAuthority(authority)));
 
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
