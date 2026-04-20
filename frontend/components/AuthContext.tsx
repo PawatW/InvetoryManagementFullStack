@@ -2,30 +2,10 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { API_BASE_URL } from '../lib/config';
+import { loginApi, getMeApi } from '../lib/auth/api';
+import { saveToken, loadToken, clearToken } from '../lib/auth/storage';
 import { decodeJwtPayload, isTokenExpired } from '../lib/auth';
-import { ApiError } from '../lib/api';
-
-type Role =
-  | 'ADMIN'
-  | 'SALES'
-  | 'TECHNICIAN'
-  | 'FOREMAN'
-  | 'WAREHOUSE'
-  | 'PROCUREMENT'
-  | string;
-
-function normalizeRole(rawRole: unknown): Role | null {
-  if (!rawRole) {
-    return null;
-  }
-  const roleString = String(rawRole).trim();
-  if (!roleString) {
-    return null;
-  }
-  const withoutPrefix = roleString.startsWith('ROLE_') ? roleString.slice(5) : roleString;
-  return withoutPrefix.toUpperCase();
-}
+import type { Role } from '../lib/auth/types';
 
 interface AuthContextValue {
   token: string | null;
@@ -39,7 +19,11 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const STORAGE_KEY = 'inventory-auth-token';
+function normalizeRole(rawRole: unknown): Role | null {
+  if (!rawRole) return null;
+  const r = String(rawRole).trim();
+  return r.startsWith('ROLE_') ? r.slice(5).toUpperCase() : r.toUpperCase();
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -49,71 +33,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    const saved = loadToken();
     if (saved) {
       const payload = decodeJwtPayload(saved);
       if (payload && !isTokenExpired(payload)) {
         setToken(saved);
         setStaffId(payload.sub);
         setRole(normalizeRole(payload.role));
-      } else if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        clearToken();
       }
     }
     setLoading(false);
   }, []);
 
   const logout = useCallback(() => {
+    clearToken();
     setToken(null);
     setStaffId(null);
     setRole(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY);
-    }
     router.push('/');
   }, [router]);
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new ApiError(message || 'ไม่สามารถเข้าสู่ระบบได้', response.status);
-      }
-
-      const data = await response.json();
-      const receivedToken = data.token as string;
-      const payload = decodeJwtPayload(receivedToken);
-      if (!payload || !payload.sub) {
-        throw new Error('Token ที่ได้รับไม่ถูกต้อง');
-      }
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, receivedToken);
-      }
-      setToken(receivedToken);
-      setStaffId(payload.sub);
-      setRole(normalizeRole(payload.role));
+      const data = await loginApi({ email, password });
+      saveToken(data.token);
+      setToken(data.token);
+      setStaffId(data.staffId);
+      setRole(normalizeRole(data.role));
       router.push('/dashboard');
     },
     [router]
   );
 
   const value = useMemo(
-    () => ({
-      token,
-      staffId,
-      role,
-      loading,
-      isAuthenticated: Boolean(token),
-      login,
-      logout
-    }),
+    () => ({ token, staffId, role, loading, isAuthenticated: Boolean(token), login, logout }),
     [token, staffId, role, loading, login, logout]
   );
 
@@ -121,9 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
 }

@@ -1,7 +1,9 @@
 package com.inv.config;
 
+import com.inv.security.AuthEntryPoint;
 import com.inv.security.JwtFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,9 +18,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import static org.springframework.security.config.Customizer.withDefaults;
-import org.springframework.beans.factory.annotation.Value;
+
 import java.util.Arrays;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 public class SecurityConfig {
@@ -26,8 +29,11 @@ public class SecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
+    @Autowired
+    private AuthEntryPoint authEntryPoint;
+
     @Value("${cors.allowed-origins:${CORS_ALLOWED_ORIGINS:http://localhost:3000}}")
-        private String allowedOrigins;
+    private String allowedOrigins;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -38,12 +44,12 @@ public class SecurityConfig {
     public AuthenticationManager authManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // configuration.addAllowedOrigin("http://localhost:3000"); // React dev server
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
-        configuration.addAllowedMethod("*"); // GET, POST, PUT, DELETE
+        configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
         configuration.setAllowCredentials(true);
 
@@ -54,72 +60,70 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
-                .cors(withDefaults())
-                .authorizeHttpRequests(request -> request
-                        // Public endpoints
-                        .requestMatchers("/register", "/login", "/test").permitAll()
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(withDefaults())
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(authEntryPoint))
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(request -> request
 
-                        // แก้ไข: ทำให้ Role เป็นตัวพิมพ์ใหญ่ทั้งหมด
-                        // Technician endpoints
-                        .requestMatchers(HttpMethod.POST, "/requests").hasRole("TECHNICIAN")
+                // Auth endpoints
+                .requestMatchers("/auth/login", "/auth/register").permitAll()
+                .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
 
-                        // Foreman endpoints
-                        .requestMatchers(HttpMethod.GET, "/requests/pending").hasRole("FOREMAN")
-                        .requestMatchers(HttpMethod.PUT, "/requests/{id}/approve").hasRole("FOREMAN")
-                        .requestMatchers(HttpMethod.PUT, "/requests/{id}/reject").hasRole("FOREMAN")
+                // Technician
+                .requestMatchers(HttpMethod.POST, "/requests").hasRole("TECHNICIAN")
+                .requestMatchers(HttpMethod.GET, "/requests/ready-to-close").hasAnyRole("TECHNICIAN", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/requests/{id}/close").hasAnyRole("TECHNICIAN", "ADMIN")
 
-                        // Authenticated endpoints (สำหรับ role อื่นๆ หรือ role ร่วม)
-                        .requestMatchers(HttpMethod.GET, "/orders/confirmed").hasAnyRole("TECHNICIAN", "ADMIN", "SALES")
-                        .requestMatchers(HttpMethod.GET, "/orders/{orderId}/items").hasAnyRole("TECHNICIAN", "ADMIN", "FOREMAN","SALES")
-                        .requestMatchers(HttpMethod.GET, "/requests/{requestId}/items").hasAnyRole("WAREHOUSE", "ADMIN","TECHNICIAN", "FOREMAN")
+                // Foreman
+                .requestMatchers(HttpMethod.GET, "/requests/pending").hasRole("FOREMAN")
+                .requestMatchers(HttpMethod.PUT, "/requests/{id}/approve").hasRole("FOREMAN")
+                .requestMatchers(HttpMethod.PUT, "/requests/{id}/reject").hasRole("FOREMAN")
 
-                        // เพิ่ม Rule สำหรับ Warehouse
-                        .requestMatchers(HttpMethod.POST, "/stock/in").hasRole("WAREHOUSE")
+                // Shared read endpoints
+                .requestMatchers(HttpMethod.GET, "/orders/confirmed").hasAnyRole("TECHNICIAN", "ADMIN", "SALES")
+                .requestMatchers(HttpMethod.GET, "/orders/{orderId}/items").hasAnyRole("TECHNICIAN", "ADMIN", "FOREMAN", "SALES")
+                .requestMatchers(HttpMethod.GET, "/requests/{requestId}/items").hasAnyRole("WAREHOUSE", "ADMIN", "TECHNICIAN", "FOREMAN")
+                .requestMatchers(HttpMethod.GET, "/requests").hasAnyRole("ADMIN", "SALES", "TECHNICIAN", "FOREMAN", "WAREHOUSE")
 
-                        .requestMatchers(HttpMethod.POST, "/customers").hasAnyRole("ADMIN", "SALES")
-                        .requestMatchers(HttpMethod.GET, "/requests").hasAnyRole("ADMIN", "SALES", "TECHNICIAN", "FOREMAN","WAREHOUSE")
+                // Warehouse
+                .requestMatchers(HttpMethod.POST, "/stock/in").hasRole("WAREHOUSE")
+                .requestMatchers(HttpMethod.GET, "/stock/fulfill").hasRole("WAREHOUSE")
+                .requestMatchers(HttpMethod.GET, "/stock/transactions").hasAnyRole("WAREHOUSE", "ADMIN")
 
-                        .requestMatchers(HttpMethod.POST, "/suppliers").authenticated()
+                // Purchase orders
+                .requestMatchers(HttpMethod.GET, "/purchase-orders", "/purchase-orders/*").hasAnyRole("PROCUREMENT", "WAREHOUSE")
+                .requestMatchers(HttpMethod.POST, "/purchase-orders").hasAnyRole("WAREHOUSE", "PROCUREMENT")
+                .requestMatchers(HttpMethod.PUT, "/purchase-orders/*/pricing").hasAnyRole("PROCUREMENT")
+                .requestMatchers(HttpMethod.POST, "/purchase-orders/*/receive").hasAnyRole("WAREHOUSE")
+                .requestMatchers(HttpMethod.POST, "/purchase-orders/upload-slip").hasAnyRole("PROCUREMENT", "ADMIN")
 
-                        // Purchase order workflow
-                        .requestMatchers(HttpMethod.GET, "/purchase-orders", "/purchase-orders/*").hasAnyRole("PROCUREMENT", "WAREHOUSE")
-                        .requestMatchers(HttpMethod.POST, "/purchase-orders").hasAnyRole("WAREHOUSE", "PROCUREMENT")
-                        .requestMatchers(HttpMethod.PUT, "/purchase-orders/*/pricing").hasAnyRole("PROCUREMENT")
-                        .requestMatchers(HttpMethod.POST, "/purchase-orders/*/receive").hasAnyRole("WAREHOUSE")
+                // Sales
+                .requestMatchers(HttpMethod.POST, "/orders").hasAnyRole("SALES", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/orders/ready-to-close").hasRole("SALES")
+                .requestMatchers(HttpMethod.PUT, "/orders/{orderId}/close").hasRole("SALES")
+                .requestMatchers(HttpMethod.POST, "/customers").hasAnyRole("ADMIN", "SALES")
 
-                        .requestMatchers("/staff/**").hasRole("ADMIN")
+                // Products
+                .requestMatchers(HttpMethod.POST, "/products").hasAnyRole("WAREHOUSE", "ADMIN", "PROCUREMENT")
+                .requestMatchers(HttpMethod.POST, "/products/upload-image").hasAnyRole("WAREHOUSE", "ADMIN", "PROCUREMENT")
 
-                        .requestMatchers(HttpMethod.POST, "/orders").hasAnyRole("SALES", "ADMIN")
-                        // อนุญาตให้ warehouse สร้างสินค้าได้
-                        .requestMatchers(HttpMethod.POST, "/products").hasAnyRole("WAREHOUSE","ADMIN","PROCUREMENT")
-                        .requestMatchers(HttpMethod.POST, "/products/upload-image").hasAnyRole("WAREHOUSE","ADMIN","PROCUREMENT")
-                        .requestMatchers(HttpMethod.POST, "/purchase-orders/upload-slip").hasAnyRole("PROCUREMENT","ADMIN")
-                        // อนุญาตให้ทุกคนที่ login แล้วดึงข้อมูล Category ได้
-                        .requestMatchers(HttpMethod.GET, "/categories").authenticated()
+                // Categories
+                .requestMatchers(HttpMethod.GET, "/categories").authenticated()
 
-                        // เพิ่ม: Rules สำหรับการปิด Request
-                        .requestMatchers(HttpMethod.GET, "/requests/ready-to-close").hasAnyRole("TECHNICIAN", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/requests/{id}/close").hasAnyRole("TECHNICIAN", "ADMIN")
+                // Suppliers
+                .requestMatchers(HttpMethod.POST, "/suppliers").authenticated()
 
-                        // เพิ่ม: Rules สำหรับการปิด Order โดย Sales
-                        .requestMatchers(HttpMethod.GET, "/orders/ready-to-close").hasRole("SALES")
-                        .requestMatchers(HttpMethod.PUT, "/orders/{orderId}/close").hasRole("SALES")
+                // Admin
+                .requestMatchers("/staff/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/staff").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/staff").hasRole("ADMIN")
 
-                        // เพิ่ม: Rules สำหรับ Endpoint ใหม่ (ให้ Admin เข้าถึงได้)
-                        .requestMatchers(HttpMethod.GET, "/staff").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/staff").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/stock/transactions").hasAnyRole("WAREHOUSE","ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/stock/fulfill").hasRole("WAREHOUSE")
-
-
-                        .anyRequest().authenticated()
-                )
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
-
 }
