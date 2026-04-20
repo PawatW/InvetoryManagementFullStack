@@ -2,19 +2,29 @@ package com.inv.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private final Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private final long expirationMs = 9000000; // 2.5 ชั่วโมง
+
+    private final Key secretKey;
+    private final long expirationMs;
+
+    public JwtUtil(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.expiration-ms}") long expirationMs) {
+        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationMs = expirationMs;
+    }
 
     public String generateToken(String staffId, String role) {
         return Jwts.builder()
-                .setSubject(staffId)   // ใช้ staff_id
+                .setSubject(staffId)
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
@@ -34,4 +44,3 @@ public class JwtUtil {
                 .getBody();
     }
 }
-

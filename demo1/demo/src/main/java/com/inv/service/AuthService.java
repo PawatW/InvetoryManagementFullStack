@@ -1,7 +1,8 @@
 package com.inv.service;
 
+import com.inv.dto.AuthResponse;
 import com.inv.model.Staff;
-import com.inv.repo.UserRepository; // แก้ไข: import StaffRepository
+import com.inv.repo.UserRepository;
 import com.inv.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -13,7 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthService {
 
     @Autowired
-    private UserRepository userRepository; // แก้ไข: Autowired StaffRepository
+    private UserRepository userRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -21,17 +22,24 @@ public class AuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
-    public String login(String email, String password) {
+    public AuthResponse login(String email, String password) {
         Staff staff = userRepository.findByEmail(email);
         if (staff == null || !passwordEncoder.matches(password, staff.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
-
         if (!staff.isActive()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "บัญชีผู้ใช้นี้ถูกระงับ (Account is deactivated)");
         }
 
-        // staffId เป็น String อยู่แล้ว ไม่ต้องแปลง
-        return jwtUtil.generateToken(staff.getStaffId(), staff.getRole());
+        String token = jwtUtil.generateToken(staff.getStaffId(), staff.getRole());
+        return new AuthResponse(token, staff.getStaffId(), staff.getRole(), staff.getStaffName());
+    }
+
+    public AuthResponse getMe(String staffId) {
+        Staff staff = userRepository.findById(staffId);
+        if (staff == null || !staff.isActive()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found or deactivated");
+        }
+        return new AuthResponse(null, staff.getStaffId(), staff.getRole(), staff.getStaffName());
     }
 }

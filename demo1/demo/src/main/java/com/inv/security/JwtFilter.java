@@ -23,24 +23,15 @@ public class JwtFilter extends OncePerRequestFilter {
     private JwtUtil jwtUtil;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.equals("/auth/login") || path.equals("/auth/register");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-
-        String path = request.getRequestURI();
-
-        System.out.println("========================================");
-        System.out.println("JwtFilter executing for: " + path);
-        System.out.println("Method: " + request.getMethod());
-        System.out.println("========================================");
-
-        // Skip JWT validation for public endpoints
-        if (path.equals("/register") || path.equals("/login") || path.equals("/test")) {
-            System.out.println("Public endpoint - skipping JWT validation");
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -52,16 +43,17 @@ public class JwtFilter extends OncePerRequestFilter {
                 String role = claims.get("role", String.class);
 
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(staffId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                        new UsernamePasswordAuthenticationToken(
+                                staffId, null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + role)));
 
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
-                System.out.println("JWT validated successfully for staff: " + staffId + " with role: " + role);
-
             } catch (Exception e) {
-                System.out.println("JWT validation failed: " + e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+                response.setContentType("application/json");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("{\"status\":401,\"message\":\"Invalid or expired token\"}");
                 return;
             }
         }

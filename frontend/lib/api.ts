@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import { clearToken } from './auth/storage';
 
 export class ApiError extends Error {
   status: number;
@@ -10,25 +11,28 @@ export class ApiError extends Error {
 }
 
 async function buildApiError(response: Response): Promise<ApiError> {
-  const rawMessage = await response.text();
+  const rawMessage = await response.text().catch(() => '');
   let message = rawMessage || 'Request failed';
   if (rawMessage) {
     try {
       const parsed = JSON.parse(rawMessage);
       if (typeof parsed === 'string') {
         message = parsed;
-      } else if (parsed && typeof parsed === 'object' && 'message' in parsed) {
-        const extracted = (parsed as { message?: unknown }).message;
-        if (typeof extracted === 'string' && extracted.trim()) {
-          message = extracted;
-        }
+      } else if (parsed?.message && typeof parsed.message === 'string') {
+        message = parsed.message;
       }
     } catch {
       message = rawMessage;
     }
   }
-
   return new ApiError(message, response.status);
+}
+
+function handleUnauthorized(): void {
+  clearToken();
+  if (typeof window !== 'undefined') {
+    window.location.href = '/';
+  }
 }
 
 export async function apiFetch<T>(
@@ -44,6 +48,11 @@ export async function apiFetch<T>(
     }
   });
 
+  if (response.status === 401) {
+    handleUnauthorized();
+    throw await buildApiError(response);
+  }
+
   if (!response.ok) {
     throw await buildApiError(response);
   }
@@ -56,48 +65,40 @@ export async function apiFetch<T>(
   return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 
-export async function uploadProductImage(
-  file: File,
-  token: string
-): Promise<{ url: string }> {
+export async function uploadProductImage(file: File, token: string): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append('file', file);
 
   const response = await fetch(`${API_BASE_URL}/products/upload-image`, {
     method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData
   });
 
-  if (!response.ok) {
-    throw await buildApiError(response);
+  if (response.status === 401) {
+    handleUnauthorized();
   }
 
-  return (await response.json()) as { url: string };
+  if (!response.ok) throw await buildApiError(response);
+  return response.json() as Promise<{ url: string }>;
 }
 
-export async function uploadPurchaseOrderSlip(
-  file: File,
-  token: string
-): Promise<{ url: string }> {
+export async function uploadPurchaseOrderSlip(file: File, token: string): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append('file', file);
 
   const response = await fetch(`${API_BASE_URL}/purchase-orders/upload-slip`, {
     method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData
   });
 
-  if (!response.ok) {
-    throw await buildApiError(response);
+  if (response.status === 401) {
+    handleUnauthorized();
   }
 
-  return (await response.json()) as { url: string };
+  if (!response.ok) throw await buildApiError(response);
+  return response.json() as Promise<{ url: string }>;
 }
 
 export interface PagedResult<T> {
