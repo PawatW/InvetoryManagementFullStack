@@ -9,7 +9,6 @@ import {
   BookOpen,
   BarChart3,
   TrendingUp,
-  Bell,
   LogOut,
   Menu,
   X,
@@ -17,7 +16,7 @@ import {
   Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { NotificationBell } from "@/components/notification-bell"
 import { cn } from "@/lib/utils"
 
 type NavItem = {
@@ -108,25 +107,12 @@ function SidebarContent({
 
       {/* Bottom: notifications + user */}
       <div className="border-t p-3 space-y-2">
-        <Link
-          href="/dashboard/notifications"
-          onClick={onNavigate}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          <Bell className="h-4 w-4 shrink-0" />
-          <span>การแจ้งเตือน</span>
-          {unreadCount > 0 && (
-            <Badge className="ml-auto h-5 min-w-5 flex items-center justify-center rounded-full p-0 text-xs">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </Badge>
-          )}
-        </Link>
-
         <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.name}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
+          <NotificationBell initialUnreadCount={unreadCount} />
           <Button
             variant="ghost"
             size="icon"
