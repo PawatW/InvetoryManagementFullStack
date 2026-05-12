@@ -382,14 +382,14 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Inventory</h1>
+        <h1 className="page-title">Inventory</h1>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="alert-error">{error}</div>}
       {successMessage && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{successMessage}</div>
+        <div className="alert-success">{successMessage}</div>
       )}
 
       <div className="card space-y-6 p-6">
@@ -522,7 +522,7 @@ export default function InventoryPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">เพิ่มสินค้าใหม่</h2>
+                    <h2 className="section-title">เพิ่มสินค้าใหม่</h2>
                   </div>
                   <button
                     type="button"
@@ -647,7 +647,7 @@ export default function InventoryPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">แก้ไขสินค้า</h2>
+                    <h2 className="section-title">แก้ไขสินค้า</h2>
                     <p className="text-sm text-slate-500">ปรับปรุงชื่อสินค้า คำอธิบาย หรือเพิ่มรูปสินค้าใหม่</p>
                   </div>
                   <button
@@ -715,7 +715,7 @@ export default function InventoryPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">ปรับราคาขายมาตรฐาน</h2>
+                    <h2 className="section-title">ปรับราคาขายมาตรฐาน</h2>
                     <p className="text-sm text-slate-500">{priceEditProduct.productName}</p>
                   </div>
                   <button
@@ -773,7 +773,7 @@ export default function InventoryPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">รายละเอียดสินค้า</h2>
+                    <h2 className="section-title">รายละเอียดสินค้า</h2>
                     <p className="text-sm text-slate-500">{selectedProduct.productName}</p>
                   </div>
                   <button
@@ -852,7 +852,7 @@ export default function InventoryPage() {
                       </div>
                     </div>
                     {batchesError && (
-                      <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{batchesError}</div>
+                      <div className="alert-error">{batchesError}</div>
                     )}
                     {!isBatchesLoading && !batchesError && productBatches.length === 0 && (
                       <p className="text-sm text-slate-500">ยังไม่มีข้อมูลล็อตสินค้า</p>

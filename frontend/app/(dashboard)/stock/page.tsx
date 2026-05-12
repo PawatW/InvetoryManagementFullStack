@@ -344,20 +344,20 @@ export default function StockPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Stock Operations</h1>
+        <h1 className="page-title">Stock Operations</h1>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
-      {message && <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{message}</div>}
+      {error && <div className="alert-error">{error}</div>}
+      {message && <div className="alert-success">{message}</div>}
 
       {canStockIn && (
         <>
           <section className="card space-y-4 p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">บันทึกสินค้าเข้า (Stock-In)</h2>
+                <h2 className="section-title">บันทึกสินค้าเข้า (Stock-In)</h2>
               </div>
               <div className="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">
                 <button
@@ -415,7 +415,7 @@ export default function StockPage() {
                   <div className="max-h-[85vh] overflow-y-auto p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-lg font-semibold text-slate-900">บันทึกสินค้าเข้า (Stock-In)</h2>
+                        <h2 className="section-title">บันทึกสินค้าเข้า (Stock-In)</h2>
                         <p className="text-sm text-slate-500">เลือกสินค้าและระบุจำนวนก่อนยืนยัน</p>
                       </div>
                       <button
@@ -488,7 +488,7 @@ export default function StockPage() {
                   <div className="max-h-[85vh] overflow-y-auto p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-lg font-semibold text-slate-900">เลือกใบสั่งซื้อที่รอรับสินค้า</h2>
+                        <h2 className="section-title">เลือกใบสั่งซื้อที่รอรับสินค้า</h2>
                         <p className="text-sm text-slate-500">ตรวจสอบรายการ Pending Purchase Order และกดรับสินค้าเข้าคลัง</p>
                       </div>
                       <button
@@ -565,7 +565,7 @@ export default function StockPage() {
                   <div className="max-h-[85vh] overflow-y-auto p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-lg font-semibold text-slate-900">ปรับจำนวนสินค้า</h2>
+                        <h2 className="section-title">ปรับจำนวนสินค้า</h2>
                         <p className="text-sm text-slate-500">เพิ่มหรือลดจำนวนสินค้าในคลังให้ตรงกับสต็อกจริง</p>
                       </div>
                       <button
@@ -637,7 +637,7 @@ export default function StockPage() {
                   <div className="max-h-[85vh] overflow-y-auto p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-lg font-semibold text-slate-900">ยืนยันการรับสินค้าเข้าคลัง</h2>
+                        <h2 className="section-title">ยืนยันการรับสินค้าเข้าคลัง</h2>
                         <p className="text-sm text-slate-500">
                           {receivingOrder.poId} • Supplier: {getSupplierDisplay(receivingOrder.supplierId)}
                         </p>
@@ -731,7 +731,7 @@ export default function StockPage() {
         <section className="card space-y-4 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">ประวัติธุรกรรมสต็อก</h2>
+              <h2 className="section-title">ประวัติธุรกรรมสต็อก</h2>
             </div>
             <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
               <input
@@ -817,7 +817,7 @@ export default function StockPage() {
             <div className="max-h-[80vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียดธุรกรรม</h2>
+                  <h2 className="section-title">รายละเอียดธุรกรรม</h2>
                   <p className="text-sm text-slate-500">
                     {inspectedTransaction.transactionId} • {format(new Date(inspectedTransaction.transactionDate), 'dd MMM yyyy HH:mm')}
                   </p>
