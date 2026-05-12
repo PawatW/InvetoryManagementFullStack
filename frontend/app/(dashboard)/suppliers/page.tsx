@@ -209,20 +209,20 @@ export default function SuppliersPage() {
   }, [suppliers, editingSupplierId]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Suppliers</h1>
+        <h1 className="page-title">Suppliers</h1>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="alert-error">{error}</div>}
       {successMessage && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{successMessage}</div>
+        <div className="alert-success">{successMessage}</div>
       )}
 
       <section className="card space-y-4 p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">รายชื่อ Supplier</h2>
+            <h2 className="section-title">รายชื่อ Supplier</h2>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
             <input
@@ -318,7 +318,7 @@ export default function SuppliersPage() {
             <div className="max-h-[80vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียด Supplier</h2>
+                  <h2 className="section-title">รายละเอียด Supplier</h2>
                   <p className="text-sm text-slate-500">
                     {inspectedSupplier.supplierId} • {inspectedSupplier.supplierName}
                   </p>
@@ -362,7 +362,7 @@ export default function SuppliersPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">แก้ไขข้อมูล Supplier</h2>
+                    <h2 className="section-title">แก้ไขข้อมูล Supplier</h2>
                     <p className="text-sm text-slate-500">
                       {editingSupplier.supplierId} • {editingSupplier.supplierName}
                     </p>
@@ -422,7 +422,7 @@ export default function SuppliersPage() {
           <section className="card space-y-4 p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">เพิ่ม Supplier</h2>
+                <h2 className="section-title">เพิ่ม Supplier</h2>
               </div>
               <button
                 type="button"
@@ -446,7 +446,7 @@ export default function SuppliersPage() {
                   <div className="max-h-[85vh] overflow-y-auto p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-lg font-semibold text-slate-900">เพิ่ม Supplier</h2>
+                        <h2 className="section-title">เพิ่ม Supplier</h2>
                       </div>
                       <button
                         type="button"

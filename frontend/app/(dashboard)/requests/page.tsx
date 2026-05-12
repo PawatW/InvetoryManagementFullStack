@@ -1040,21 +1040,21 @@ export default function RequestsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-slate-900">Requests</h1>
+        <h1 className="page-title">Requests</h1>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="alert-error">{error}</div>}
       {successMessage && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{successMessage}</div>
+        <div className="alert-success">{successMessage}</div>
       )}
 
       {canCreate && (
         <section className="card space-y-4 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Technician: สร้างคำขอเบิก</h2>
+              <h2 className="section-title">Technician: สร้างคำขอเบิก</h2>
             </div>
             <button
               type="button"
@@ -1075,7 +1075,7 @@ export default function RequestsPage() {
         <section className="card space-y-4 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Warehouse: ดำเนินการเบิกสินค้า</h2>
+              <h2 className="section-title">Warehouse: ดำเนินการเบิกสินค้า</h2>
             </div>
             <button
               type="button"
@@ -1110,7 +1110,7 @@ export default function RequestsPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">รายการคำขอสำหรับเบิก</h2>
+                    <h2 className="section-title">รายการคำขอสำหรับเบิก</h2>
                   {warehouseActiveRequest ? (
                       <p className="text-sm text-slate-500">
                         {warehouseActiveRequest.requestId} • Order {warehouseActiveRequest.orderId ?? '-'} • ลูกค้า {warehouseActiveRequest.customerId ?? '-'}
@@ -1399,7 +1399,7 @@ export default function RequestsPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">สร้างคำขอเบิกวัสดุ</h2>
+                    <h2 className="section-title">สร้างคำขอเบิกวัสดุ</h2>
                     <p className="text-sm text-slate-500">กรอกข้อมูลคำขอและรายการสินค้าให้ครบถ้วนก่อนยืนยัน</p>
                   </div>
                   <button
@@ -1642,7 +1642,7 @@ export default function RequestsPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6 space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">รายละเอียด Order</h2>
+                    <h2 className="section-title">รายละเอียด Order</h2>
                     <p className="text-sm text-slate-500">
                       {previewOrder.orderId} • ลูกค้า {previewCustomerName ?? previewOrder.customerId}
                     </p>
@@ -1733,7 +1733,7 @@ export default function RequestsPage() {
         <section className="card space-y-4 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Foreman: รออนุมัติ</h2>
+              <h2 className="section-title">Foreman: รออนุมัติ</h2>
             </div>
             <input
               type="search"
@@ -1820,7 +1820,7 @@ export default function RequestsPage() {
      {role === 'TECHNICIAN' && (
       <section className="card space-y-4 p-6">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Technician: คำขอของฉัน</h2>
+          <h2 className="section-title">Technician: คำขอของฉัน</h2>
           <p className="text-sm text-slate-500">แสดงรายการคำขอทั้งหมดที่สร้างโดยคุณ ({staffId})</p>
         </div>
         <div className="space-y-3">
@@ -1893,7 +1893,7 @@ export default function RequestsPage() {
       {canClose && (
         <section className="card space-y-4 p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">คำขอที่พร้อมปิด</h2>
+            <h2 className="section-title">คำขอที่พร้อมปิด</h2>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {(readyToClose ?? []).map((request) => {
@@ -1937,7 +1937,7 @@ export default function RequestsPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียดคำขอที่พร้อมปิด</h2>
+                  <h2 className="section-title">รายละเอียดคำขอที่พร้อมปิด</h2>
                   <p className="text-sm text-slate-500">
                     {inspectedReadyRequest.requestId} • วันที่ {formatDateTime(inspectedReadyRequest.requestDate)} • สถานะ{' '}
                     {statusOverrides.get(inspectedReadyRequest.requestId) ?? inspectedReadyRequest.status}
@@ -2005,7 +2005,7 @@ export default function RequestsPage() {
       <section className="card space-y-4 p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">รายการคำขอทั้งหมด</h2>
+            <h2 className="section-title">รายการคำขอทั้งหมด</h2>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
             <input
@@ -2086,7 +2086,7 @@ export default function RequestsPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียดคำขอ</h2>
+                  <h2 className="section-title">รายละเอียดคำขอ</h2>
                   <p className="text-sm text-slate-500">
                     {inspectedAllRequest.requestId} • วันที่ {formatDateTime(inspectedAllRequest.requestDate)} • สถานะ {inspectedAllRequest.status}
                   </p>

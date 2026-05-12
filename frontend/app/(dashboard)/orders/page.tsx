@@ -267,21 +267,21 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Orders</h1>
+        <h1 className="page-title">Orders</h1>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="alert-error">{error}</div>}
       {successMessage && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{successMessage}</div>
+        <div className="alert-success">{successMessage}</div>
       )}
 
       {canCreate && (
         <section className="card space-y-4 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Sales: สร้าง Order ใหม่</h2>
+              <h2 className="section-title">Sales: สร้าง Order ใหม่</h2>
             </div>
             <button
               type="button"
@@ -305,7 +305,7 @@ export default function OrdersPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">สร้าง Order ใหม่</h2>
+                    <h2 className="section-title">สร้าง Order ใหม่</h2>
                     <p className="text-sm text-slate-500">กรอกข้อมูล Order พร้อมรายการสินค้าให้ครบถ้วน</p>
                   </div>
                   <button
@@ -441,7 +441,7 @@ export default function OrdersPage() {
         <section className="card space-y-4 p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">{isSales ? 'All Order' : 'Order ที่ได้รับการยืนยัน'}</h2>
+            <h2 className="section-title">{isSales ? 'All Order' : 'Order ที่ได้รับการยืนยัน'}</h2>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
             <input
@@ -586,7 +586,7 @@ export default function OrdersPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียด Order</h2>
+                  <h2 className="section-title">รายละเอียด Order</h2>
                   {inspectedOrder ? (
                     <p className="text-sm text-slate-500">
                       {inspectedOrder.orderId} • ลูกค้า {inspectedOrder.customerId} • วันที่{' '}
@@ -645,7 +645,7 @@ export default function OrdersPage() {
       {role === 'SALES' && (
         <section className="card space-y-4 p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Order ที่พร้อมปิด</h2>
+            <h2 className="section-title">Order ที่พร้อมปิด</h2>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {(readyToClose ?? []).map((order) => {
@@ -687,7 +687,7 @@ export default function OrdersPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียด Order ที่พร้อมปิด</h2>
+                  <h2 className="section-title">รายละเอียด Order ที่พร้อมปิด</h2>
                   <p className="text-sm text-slate-500">
                     {inspectedReadyOrder.orderId} • ลูกค้า {inspectedReadyOrder.customerId} • วันที่{' '}
                     {formatDateTime(inspectedReadyOrder.orderDate, 'dd MMM yyyy HH:mm')}
@@ -751,7 +751,7 @@ export default function OrdersPage() {
       {role === 'ADMIN' && allOrders && (
         <section className="card space-y-4 p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Order ทั้งหมด </h2>
+            <h2 className="section-title">Order ทั้งหมด </h2>
           </div>
           <div className="overflow-hidden rounded-2xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">

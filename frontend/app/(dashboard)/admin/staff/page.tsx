@@ -41,18 +41,18 @@ export default function StaffAdminPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Staff Management</h1>
+        <h1 className="page-title">Staff Management</h1>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="alert-error">{error}</div>}
       {successMessage && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{successMessage}</div>
+        <div className="alert-success">{successMessage}</div>
       )}
 
       <section className="card space-y-4 p-6">
-        <h2 className="text-lg font-semibold text-slate-900">พนักงานทั้งหมด</h2>
+        <h2 className="section-title">พนักงานทั้งหมด</h2>
         <div className="overflow-hidden rounded-2xl border border-slate-200">
           <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">

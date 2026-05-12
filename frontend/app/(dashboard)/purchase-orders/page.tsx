@@ -475,11 +475,11 @@ export default function PurchaseOrdersPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Purchase Orders</h1>
+            <h1 className="page-title">Purchase Orders</h1>
           </div>
           {canCreate && (
             <button
@@ -493,9 +493,9 @@ export default function PurchaseOrdersPage() {
         </div>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="alert-error">{error}</div>}
       {successMessage && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{successMessage}</div>
+        <div className="alert-success">{successMessage}</div>
       )}
 
       <section className="card space-y-4 p-6">
@@ -600,7 +600,7 @@ export default function PurchaseOrdersPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6 space-y-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียดใบสั่งซื้อ</h2>
+                  <h2 className="section-title">รายละเอียดใบสั่งซื้อ</h2>
                   <p className="text-sm text-slate-500">
                     {detailOrder.poId} • {detailOrder.status}
                   </p>
@@ -724,7 +724,7 @@ export default function PurchaseOrdersPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">สร้างใบสั่งซื้อใหม่</h2>
+                  <h2 className="section-title">สร้างใบสั่งซื้อใหม่</h2>
                   <p className="text-sm text-slate-500">เลือกสินค้าที่ต้องการสั่งซื้อ</p>
                 </div>
                 <button
@@ -846,7 +846,7 @@ export default function PurchaseOrdersPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">ยืนยันการจัดซื้อ</h2>
+                  <h2 className="section-title">ยืนยันการจัดซื้อ</h2>
                   <p className="text-sm text-slate-500">
                     {pricingOrder.poId} • Supplier: {getSupplierDisplay(pricingOrder.supplierId)}
                   </p>
@@ -976,7 +976,7 @@ export default function PurchaseOrdersPage() {
             <div className="max-h-[85vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">ยืนยันการรับสินค้าเข้าคลัง</h2>
+                  <h2 className="section-title">ยืนยันการรับสินค้าเข้าคลัง</h2>
                   <p className="text-sm text-slate-500">
                     {receivingOrder.poId} • Supplier: {getSupplierDisplay(receivingOrder.supplierId)}
                   </p>

@@ -216,9 +216,9 @@ export default function ReportExportPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Report Export</h1>
+        <h1 className="page-title">Report Export</h1>
         <p className="text-sm text-slate-500">สร้างรายงานการเบิกสินค้าในรูปแบบ PDF โดยเลือกช่วงวันที่ที่ต้องการ</p>
       </header>
 
@@ -264,7 +264,7 @@ export default function ReportExportPage() {
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-slate-900">สรุปรายการสินค้า</h2>
+          <h2 className="section-title">สรุปรายการสินค้า</h2>
           <div className="text-sm text-slate-500">
             <span className="mr-4">จำนวนสินค้า: {aggregatedRows.length.toLocaleString('th-TH')}</span>
             <span className="mr-4">จำนวนหน่วยรวม: {totalQuantity.toLocaleString('th-TH')}</span>

@@ -215,20 +215,20 @@ export default function CustomersPage() {
   }, [customers, editingCustomerId]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Customers</h1>
+        <h1 className="page-title">Customers</h1>
       </header>
 
-      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+      {error && <div className="alert-error">{error}</div>}
       {successMessage && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-600">{successMessage}</div>
+        <div className="alert-success">{successMessage}</div>
       )}
 
       <section className="card space-y-4 p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">รายชื่อลูกค้า</h2>
+            <h2 className="section-title">รายชื่อลูกค้า</h2>
             <p className="text-sm text-slate-500">ค้นหาและตรวจสอบข้อมูลลูกค้าทั้งหมดจากระบบ</p>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
@@ -325,7 +325,7 @@ export default function CustomersPage() {
             <div className="max-h-[80vh] overflow-y-auto p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">รายละเอียดลูกค้า</h2>
+                  <h2 className="section-title">รายละเอียดลูกค้า</h2>
                   <p className="text-sm text-slate-500">
                     {inspectedCustomer.customerId} • {inspectedCustomer.customerName}
                   </p>
@@ -369,7 +369,7 @@ export default function CustomersPage() {
               <div className="max-h-[85vh] overflow-y-auto p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">แก้ไขข้อมูลลูกค้า</h2>
+                    <h2 className="section-title">แก้ไขข้อมูลลูกค้า</h2>
                     <p className="text-sm text-slate-500">
                       {editingCustomer.customerId} • {editingCustomer.customerName}
                     </p>
@@ -429,7 +429,7 @@ export default function CustomersPage() {
           <section className="card space-y-4 p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">เพิ่มลูกค้าใหม่</h2>
+                <h2 className="section-title">เพิ่มลูกค้าใหม่</h2>
               </div>
               <button
                 type="button"
@@ -453,7 +453,7 @@ export default function CustomersPage() {
                   <div className="max-h-[85vh] overflow-y-auto p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="text-lg font-semibold text-slate-900">เพิ่มลูกค้าใหม่</h2>
+                        <h2 className="section-title">เพิ่มลูกค้าใหม่</h2>
                         <p className="text-sm text-slate-500">กรอกข้อมูลลูกค้าให้ครบถ้วนก่อนบันทึก</p>
                       </div>
                       <button

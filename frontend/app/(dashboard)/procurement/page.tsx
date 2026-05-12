@@ -41,9 +41,9 @@ export default function ProcurementOverviewPage() {
   }, [orders]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">Procurement Overview</h1>
+        <h1 className="page-title">Procurement Overview</h1>
         <p className="text-sm text-slate-500">สรุปสถานะใบสั่งซื้อและการรับสินค้าเข้าคลัง</p>
       </header>
 
@@ -65,7 +65,7 @@ export default function ProcurementOverviewPage() {
       <section className="card space-y-4 p-6">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">จัดการใบสั่งซื้อ</h2>
+            <h2 className="section-title">จัดการใบสั่งซื้อ</h2>
             <p className="text-sm text-slate-500">ตรวจสอบใบสั่งซื้อใหม่ กรอกราคาทุน และยืนยันการรับสินค้า</p>
           </div>
           <Link
